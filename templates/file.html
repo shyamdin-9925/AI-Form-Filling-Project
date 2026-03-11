@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}FormAssist | Faster form completion{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <p class="eyebrow">AI-assisted form completion</p>
+    <h1>Upload documents, review suggestions, and finish forms with less manual work.</h1>
+    <p class="section-text">
+      FormAssist combines OCR, AI autofill, and a clean review flow so users can complete
+      forms faster and with fewer errors.
+    </p>
+
+    <div class="hero-actions">
+      <a href="/signup" class="btn btn-primary">Create account</a>
+      <a href="/login" class="btn btn-secondary">Log in</a>
+    </div>
+  </div>
+
+  <div class="hero-card">
+    <h2>How it works</h2>
+    <ul class="steps-list">
+      <li>
+        <span class="step-number">1</span>
+        <div>
+          <strong>Upload a file</strong>
+          <p>Send a PDF or image to extract text from your document.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-number">2</span>
+        <div>
+          <strong>Autofill fields</strong>
+          <p>Use AI suggestions to populate the form quickly.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-number">3</span>
+        <div>
+          <strong>Review and submit</strong>
+          <p>Check every value before creating your final output.</p>
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="feature-grid">
+  <article class="feature-card">
+    <h3>OCR upload flow</h3>
+    <p>Extract text from supported files and send it into the form workflow.</p>
+  </article>
+
+  <article class="feature-card">
+    <h3>AI suggestions</h3>
+    <p>Pre-fill fields using backend-provided autofill data and on-demand requests.</p>
+  </article>
+
+  <article class="feature-card">
+    <h3>Review before output</h3>
+    <p>Confirm details in a clean summary before download or submission.</p>
+  </article>
+</section>
+{% endblock %}

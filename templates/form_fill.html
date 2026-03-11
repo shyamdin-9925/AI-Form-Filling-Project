@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Fill form | FormAssist{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/form.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/autofill.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<section class="page-intro form-intro">
+  <div>
+    <p class="eyebrow">Main form</p>
+    <h1>Review and complete your fields</h1>
+    <p class="section-text">
+      AI suggestions are already pre-filled where available. You can request autofill again at any time.
+    </p>
+  </div>
+
+  <div class="form-toolbar">
+    <input
+      type="hidden"
+      id="userId"
+      value="{{ user.id if user is defined and user and user.id is defined else '' }}"
+    >
+    <button type="button" class="btn btn-secondary" id="autofillTrigger">Run AI autofill</button>
+    <span id="autofillStatus" class="inline-status" aria-live="polite"></span>
+  </div>
+</section>
+
+{% if errors %}
+  <div class="alert alert-error">
+    <strong>There were problems with your form:</strong>
+    <ul class="alert-list">
+      {% for error in errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<form action="/form/submit" method="POST" id="mainForm" class="form-card">
+  {% for field in form_fields %}
+    <div class="form-field{% if field.type == 'textarea' %} form-field-wide{% endif %}">
+      <label for="{{ field.name }}">{{ field.label }}</label>
+
+      {% if field.type == 'textarea' %}
+        <textarea name="{{ field.name }}" id="{{ field.name }}" rows="4">{{ autofill_data.get(field.name, '') }}</textarea>
+      {% else %}
+        <input
+          name="{{ field.name }}"
+          type="{{ field.type }}"
+          value="{{ autofill_data.get(field.name, '') }}"
+          id="{{ field.name }}"
+          autocomplete="off"
+        >
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  <div class="form-actions sticky-actions">
+    <a href="/upload" class="btn btn-secondary">Back to upload</a>
+    <button type="submit" class="btn btn-primary">Continue</button>
+  </div>
+</form>
+{% endblock %}

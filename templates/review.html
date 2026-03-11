@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Review data | FormAssist{% endblock %}
+
+{% block content %}
+<section class="page-intro">
+  <div>
+    <p class="eyebrow">Review</p>
+    <h1>Confirm your information</h1>
+    <p class="section-text">Check the values below before final submission.</p>
+  </div>
+</section>
+
+<div class="review-card">
+  {% if review_data %}
+    <div class="review-list">
+      {% for key, value in review_data.items() %}
+        <div class="review-row">
+          <div class="review-key">{{ key|replace('_', ' ')|title }}</div>
+          <div class="review-value">{{ value }}</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <form action="/form/submit" method="POST" class="form-actions">
+      {% for key, value in review_data.items() %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+
+      <a href="/form/fill" class="btn btn-secondary">Edit details</a>
+      <button type="submit" class="btn btn-primary">Confirm and submit</button>
+    </form>
+  {% else %}
+    <div class="empty-state">
+      <h3>No review data available</h3>
+      <p>Go back to the form and add your information first.</p>
+      <a href="/form/fill" class="btn btn-primary">Return to form</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
