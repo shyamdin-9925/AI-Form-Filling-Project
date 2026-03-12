@@ -1,32 +1,131 @@
 def get_form_fields(form_type: str) -> list:
     """
-    Returns list of field definitions for a given form type.
+    Returns list of field definitions for each form type.
     Frontend uses this to build the form dynamically.
     """
     forms = {
         'scholarship': [
-            {'name': 'full_name',       'label': 'Full Name',           'type': 'text'},
-            {'name': 'dob',             'label': 'Date of Birth',       'type': 'date'},
-            {'name': 'mobile',          'label': 'Mobile Number',       'type': 'tel'},
-            {'name': 'email',           'label': 'Email Address',       'type': 'email'},
-            {'name': 'aadhaar_number',  'label': 'Aadhaar Number',      'type': 'text'},
-            {'name': 'pan_number',      'label': 'PAN Number',          'type': 'text'},
-            {'name': 'address',         'label': 'Permanent Address',   'type': 'textarea'},
-            {'name': 'college_name',    'label': 'College Name',        'type': 'text'},
-            {'name': 'enrollment_no',   'label': 'Enrollment Number',   'type': 'text'},
-            {'name': 'course_name',     'label': 'Course Name',         'type': 'text'},
-            {'name': 'bank_account',    'label': 'Bank Account Number', 'type': 'text'},
-            {'name': 'ifsc_code',       'label': 'IFSC Code',           'type': 'text'},
-            {'name': 'bank_name',       'label': 'Bank Name',           'type': 'text'},
-        ]
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'pan_number',          'label': 'PAN Number',              'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'category',            'label': 'Category',                'type': 'text'},
+            {'name': 'college_name',        'label': 'College Name',            'type': 'text'},
+            {'name': 'enrollment_no',       'label': 'Enrollment Number',       'type': 'text'},
+            {'name': 'course_name',         'label': 'Course Name',             'type': 'text'},
+            {'name': 'marksheet_10_percent','label': '10th Percentage',         'type': 'text'},
+            {'name': 'marksheet_12_percent','label': '12th Percentage',         'type': 'text'},
+            {'name': 'annual_income',       'label': 'Annual Family Income',    'type': 'text'},
+            {'name': 'bank_account',        'label': 'Bank Account Number',     'type': 'text'},
+            {'name': 'ifsc_code',           'label': 'IFSC Code',               'type': 'text'},
+            {'name': 'bank_name',           'label': 'Bank Name',               'type': 'text'},
+        ],
+        'college_admission': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'category',            'label': 'Category',                'type': 'text'},
+            {'name': 'school_name',         'label': 'School Name',             'type': 'text'},
+            {'name': 'marksheet_10_percent','label': '10th Percentage',         'type': 'text'},
+            {'name': 'marksheet_12_percent','label': '12th Percentage',         'type': 'text'},
+            {'name': 'course_applied',      'label': 'Course Applied For',      'type': 'text'},
+            {'name': 'college_preference',  'label': 'College Preference',      'type': 'text'},
+        ],
+        'visa_application': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'passport_number',     'label': 'Passport Number',         'type': 'text'},
+            {'name': 'passport_expiry',     'label': 'Passport Expiry Date',    'type': 'date'},
+            {'name': 'nationality',         'label': 'Nationality',             'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'travel_purpose',      'label': 'Purpose of Travel',       'type': 'text'},
+            {'name': 'destination_country', 'label': 'Destination Country',     'type': 'text'},
+            {'name': 'bank_account',        'label': 'Bank Account Number',     'type': 'text'},
+        ],
+        'kyc_verification': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'pan_number',          'label': 'PAN Number',              'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'bank_account',        'label': 'Bank Account Number',     'type': 'text'},
+            {'name': 'ifsc_code',           'label': 'IFSC Code',               'type': 'text'},
+            {'name': 'bank_name',           'label': 'Bank Name',               'type': 'text'},
+        ],
+        'passport_application': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'pan_number',          'label': 'PAN Number',              'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'birth_place',         'label': 'Place of Birth',          'type': 'text'},
+            {'name': 'father_name',         'label': 'Father Name',             'type': 'text'},
+            {'name': 'mother_name',         'label': 'Mother Name',             'type': 'text'},
+        ],
+        'driving_licence': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'birth_place',         'label': 'Place of Birth',          'type': 'text'},
+            {'name': 'blood_group',         'label': 'Blood Group',             'type': 'text'},
+            {'name': 'vehicle_type',        'label': 'Vehicle Type',            'type': 'text'},
+        ],
+        'income_tax_return': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'pan_number',          'label': 'PAN Number',              'type': 'text'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'annual_income',       'label': 'Annual Income',           'type': 'text'},
+            {'name': 'bank_account',        'label': 'Bank Account Number',     'type': 'text'},
+            {'name': 'ifsc_code',           'label': 'IFSC Code',               'type': 'text'},
+        ],
+        'insurance_claim': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'pan_number',          'label': 'PAN Number',              'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+            {'name': 'bank_account',        'label': 'Bank Account Number',     'type': 'text'},
+            {'name': 'ifsc_code',           'label': 'IFSC Code',               'type': 'text'},
+            {'name': 'claim_reason',        'label': 'Reason for Claim',        'type': 'textarea'},
+        ],
+        'general_purpose': [
+            {'name': 'full_name',           'label': 'Full Name',               'type': 'text'},
+            {'name': 'dob',                 'label': 'Date of Birth',           'type': 'date'},
+            {'name': 'mobile',              'label': 'Mobile Number',           'type': 'tel'},
+            {'name': 'email',               'label': 'Email Address',           'type': 'email'},
+            {'name': 'aadhaar_number',      'label': 'Aadhaar Number',          'type': 'text'},
+            {'name': 'pan_number',          'label': 'PAN Number',              'type': 'text'},
+            {'name': 'address',             'label': 'Permanent Address',       'type': 'textarea'},
+        ],
     }
     return forms.get(form_type, [])
 
 
 def get_user_data(user) -> dict:
     """
-    Converts a User database object to a plain dict
-    that the ML autofill model can process.
+    Converts User database object to plain dict
+    for the ML autofill model to process.
     """
     return {
         'name':    user.name,
