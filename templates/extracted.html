@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}OCR Results | FormAssist{% endblock %}
+{% block content %}
+<div class="inner-page">
+  <div class="container-xl px-4">
+
+    <div class="inner-page-header">
+      <div class="breadcrumb-row">
+        <a href="{{ url_for('dashboard') }}" class="breadcrumb-link">Dashboard</a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="{{ url_for('form_select') }}" class="breadcrumb-link">Choose Form</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-link">Upload</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">OCR Results</span>
+      </div>
+      <div class="form-type-badge" style="background:{{ form_info.color }}22;color:{{ form_info.color }}">
+        {{ form_info.icon }} {{ form_info.label }}
+      </div>
+      <h1 class="inner-title">Extracted Data Summary</h1>
+      <p class="inner-sub">Review what was found in each document. Green means successfully extracted — red means not found. All pre-filled fields are editable on the next page.</p>
+    </div>
+
+    <!-- STEP BAR -->
+    <div class="step-bar">
+      <div class="step-item done"><div class="step-dot">✓</div><span>Choose Form</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>Upload Docs</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item active"><div class="step-dot">3</div><span>Review OCR</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">4</div><span>Fill Form</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">5</div><span>Submit</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">6</div><span>Download</span></div>
+    </div>
+
+    <!-- OCR SUMMARY STATS -->
+    {% set total_fields = namespace(count=0) %}
+    {% set found_fields = namespace(count=0) %}
+    {% for doc_name, result in extracted_results.items() %}
+      {% for key, value in result.entities.items() %}
+        {% set total_fields.count = total_fields.count + 1 %}
+        {% if result.ok and value and value != 'Not found' %}{% set found_fields.count = found_fields.count + 1 %}{% endif %}
+      {% endfor %}
+    {% endfor %}
+
+    <div class="ocr-stats-row">
+      <div class="ocr-stat">
+        <span class="ocr-stat-num">{{ extracted_results|length }}</span>
+        <span class="ocr-stat-lbl">Documents Scanned</span>
+      </div>
+      <div class="ocr-stat">
+        <span class="ocr-stat-num" style="color:#059669">{{ found_fields.count }}</span>
+        <span class="ocr-stat-lbl">Fields Extracted</span>
+      </div>
+      <div class="ocr-stat">
+        <span class="ocr-stat-num">{{ total_fields.count }}</span>
+        <span class="ocr-stat-lbl">Total Fields Checked</span>
+      </div>
+    </div>
+
+    <!-- DOCUMENT CARDS -->
+    <div class="extracted-grid">
+      {% for doc_name, result in extracted_results.items() %}
+      <div class="extracted-card {% if not result.ok %}extracted-card--failed{% endif %}">
+        <div class="ext-card-header">
+          <div class="ext-doc-icon">
+            {% if not result.ok %}❌{% elif 'Photo' in doc_name %}🖼{% elif 'Marksheet' in doc_name %}📊{% elif 'Aadhaar' in doc_name %}🪪{% elif 'PAN' in doc_name %}💳{% elif 'Bank' in doc_name %}🏦{% elif 'Passport' in doc_name %}📘{% else %}📄{% endif %}
+          </div>
+          <div class="ext-doc-info">
+            <div class="ext-doc-name">{{ doc_name }}</div>
+            <div class="ext-doc-status {% if result.ok %}status-ok{% else %}status-fail{% endif %}">
+              {% if result.ok %}✓ Successfully scanned{% else %}✗ Not uploaded{% endif %}
+            </div>
+          </div>
+        </div>
+        {% if result.ok and result.entities %}
+        <div class="ext-fields">
+          {% for key, value in result.entities.items() %}
+          <div class="ext-field {% if not value or value == 'Not found' %}ext-field--missing{% else %}ext-field--found{% endif %}">
+            <span class="ext-field-icon">{% if not value or value == 'Not found' %}❌{% else %}✅{% endif %}</span>
+            <span class="ext-field-key">{{ key }}:</span>
+            <span class="ext-field-val">{% if not value or value == 'Not found' %}<em>Not found in document</em>{% else %}{{ value }}{% endif %}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% elif not result.ok %}
+        <div class="ext-not-uploaded">
+          <p>This document was not uploaded. Fields from this document will be empty in the form — please fill them manually.</p>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- PROCEED BUTTON -->
+    <div class="extracted-footer">
+      <div class="extracted-notice">
+        <span>ℹ️</span>
+        <span>All pre-filled fields on the next page are <strong>fully editable</strong>. If OCR made a mistake, simply click the field and correct it.</span>
+      </div>
+      <div class="extracted-actions">
+        <a href="{{ url_for('upload_page', form_type=form_type) }}" class="btn-outline-secondary-fa">← Re-upload Documents</a>
+        <a href="{{ url_for('form_fill_get', form_type=form_type) }}" class="btn-primary-fa btn-lg-fa">Continue to Pre-filled Form →</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

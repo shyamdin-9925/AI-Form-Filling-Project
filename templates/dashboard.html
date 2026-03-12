@@ -1,102 +1,112 @@
 {% extends 'base.html' %}
-
 {% block title %}Dashboard | FormAssist{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-{% endblock %}
-
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
 {% block content %}
-<section class="dashboard-header">
-  <div>
-    <p class="eyebrow">Dashboard</p>
-    <h1>
-      Welcome{% if user is defined and user %}, {{ user.name }}{% endif %}
-    </h1>
-    <p class="section-text">
-      {% if user is defined and user %}
-        Signed in as {{ user.email }}.
-      {% else %}
-        View your recent form activity.
-      {% endif %}
-    </p>
-  </div>
+<div class="dash-page">
+  <div class="container-xl px-4">
 
-  <div class="dashboard-actions">
-    <a href="/form/select" class="btn btn-primary">Start a new form</a>
-    <a href="/upload" class="btn btn-secondary">Upload document</a>
-  </div>
-</section>
-
-<section class="dashboard-summary">
-  <article class="summary-card">
-    <span class="summary-label">Total submissions</span>
-    <span class="summary-value">{{ submissions|length if submissions else 0 }}</span>
-  </article>
-
-  <article class="summary-card">
-    <span class="summary-label">Account name</span>
-    <span class="summary-text">
-      {% if user is defined and user %}
-        {{ user.name }}
-      {% else %}
-        Guest
-      {% endif %}
-    </span>
-  </article>
-
-  <article class="summary-card">
-    <span class="summary-label">Email</span>
-    <span class="summary-text">
-      {% if user is defined and user %}
-        {{ user.email }}
-      {% else %}
-        —
-      {% endif %}
-    </span>
-  </article>
-</section>
-
-<section class="submission-section">
-  <div class="section-heading">
-    <h2>Past submissions</h2>
-  </div>
-
-  {% if submissions %}
-    <div class="submission-grid">
-      {% for submission in submissions %}
-        <article class="submission-card">
-          <div class="submission-card-head">
-            <h3>{{ submission.form_name or submission.name or ('Submission #' ~ (submission.id or loop.index)) }}</h3>
-            <span class="status-badge">{{ submission.status or 'Saved' }}</span>
-          </div>
-
-          <dl class="submission-meta">
-            <div>
-              <dt>ID</dt>
-              <dd>{{ submission.id or '—' }}</dd>
-            </div>
-            <div>
-              <dt>Created</dt>
-              <dd>{{ submission.created_at or submission.date or '—' }}</dd>
-            </div>
-            <div>
-              <dt>Updated</dt>
-              <dd>{{ submission.updated_at or '—' }}</dd>
-            </div>
-          </dl>
-        </article>
-      {% endfor %}
+    <!-- WELCOME HEADER -->
+    <div class="dash-header">
+      <div class="dash-header-left">
+        <div class="dash-avatar" style="background:{{ current_user.avatar_color }}">{{ current_user.name[0]|upper }}</div>
+        <div>
+          <h1 class="dash-welcome">Welcome back, <span>{{ user.name.split(' ')[0] }}</span> 👋</h1>
+          <p class="dash-sub">Manage your form submissions and start new ones</p>
+        </div>
+      </div>
+      <a href="{{ url_for('form_select') }}" class="dash-new-btn">
+        <span>+</span> Start New Form
+      </a>
     </div>
-  {% else %}
-    <div class="empty-state">
-      <h3>No submissions yet</h3>
-      <p>Start by uploading a document or filling out a form.</p>
-      <div class="form-actions centered">
-        <a href="/upload" class="btn btn-primary">Upload document</a>
-        <a href="/form/select" class="btn btn-secondary">Choose a form</a>
+
+    <!-- STATS ROW -->
+    <div class="dash-stats">
+      <div class="dash-stat dash-stat--total">
+        <div class="dash-stat-icon">📋</div>
+        <div class="dash-stat-val">{{ stats.total }}</div>
+        <div class="dash-stat-lbl">Total Submissions</div>
+      </div>
+      <div class="dash-stat dash-stat--submitted">
+        <div class="dash-stat-icon">✅</div>
+        <div class="dash-stat-val">{{ stats.submitted }}</div>
+        <div class="dash-stat-lbl">Submitted</div>
+      </div>
+      <div class="dash-stat dash-stat--draft">
+        <div class="dash-stat-icon">✏️</div>
+        <div class="dash-stat-val">{{ stats.draft }}</div>
+        <div class="dash-stat-lbl">Drafts</div>
+      </div>
+      <div class="dash-stat dash-stat--forms">
+        <div class="dash-stat-icon">🗂</div>
+        <div class="dash-stat-val">9</div>
+        <div class="dash-stat-lbl">Form Types Available</div>
       </div>
     </div>
-  {% endif %}
-</section>
+
+    <!-- QUICK ACTIONS -->
+    <div class="dash-quick">
+      <h3 class="dash-section-title">Quick Start</h3>
+      <div class="dash-quick-grid">
+        {% for form in form_types_list[:4] %}
+        <a href="{{ url_for('upload_page', form_type=form.type) }}" class="dash-quick-card" style="--qc-color:{{ form.color }}">
+          <span class="dqc-icon">{{ form.icon }}</span>
+          <span class="dqc-label">{{ form.label }}</span>
+          <span class="dqc-arrow">→</span>
+        </a>
+        {% endfor %}
+      </div>
+      <a href="{{ url_for('form_select') }}" class="dash-see-all">See all 9 form types →</a>
+    </div>
+
+    <!-- SUBMISSIONS TABLE -->
+    <div class="dash-submissions">
+      <div class="dash-section-head">
+        <h3 class="dash-section-title">Past Submissions</h3>
+        <span class="dash-count-badge">{{ submissions|length }}</span>
+      </div>
+
+      {% if submissions %}
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead>
+            <tr>
+              <th>Form Type</th>
+              <th>Submitted At</th>
+              <th>Status</th>
+              <th>ID</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sub in submissions %}
+            <tr>
+              <td>
+                <div class="sub-type-cell">
+                  <span class="sub-type-icon">{{ sub.form_icon }}</span>
+                  <span>{{ sub.form_name }}</span>
+                </div>
+              </td>
+              <td class="sub-date">{{ sub.submitted_at }}</td>
+              <td><span class="sub-status-pill {% if sub.status=='Submitted' %}pill-submitted{% else %}pill-draft{% endif %}">{{ sub.status }}</span></td>
+              <td class="sub-id">#{{ sub.id }}</td>
+              <td>
+                <a href="{{ url_for('form_select') }}" class="dash-action-link">Fill Again</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="dash-empty">
+        <div class="dash-empty-icon">📋</div>
+        <h4>No submissions yet</h4>
+        <p>Start by filling your first form. AI will extract data from your documents automatically.</p>
+        <a href="{{ url_for('form_select') }}" class="dash-new-btn">Start Your First Form →</a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
 {% endblock %}

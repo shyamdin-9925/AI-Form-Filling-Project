@@ -1,41 +1,133 @@
 {% extends 'base.html' %}
-
-{% block title %}Upload document | FormAssist{% endblock %}
-
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
-{% endblock %}
-
+{% block title %}Upload Documents | FormAssist{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/upload.js') }}" defer></script>{% endblock %}
 {% block content %}
-<section class="page-intro">
-  <div>
-    <p class="eyebrow">Document upload</p>
-    <h1>Upload a PDF or image</h1>
-    <p class="section-text">
-      We will extract text from your file and use it to support autofill suggestions.
-    </p>
-  </div>
-</section>
+<div class="inner-page">
+  <div class="container-xl px-4">
 
-<section class="upload-layout">
-  <form action="/upload/document" method="POST" enctype="multipart/form-data" id="uploadForm" class="upload-card">
-    <div class="form-field">
-      <label for="document">Choose a file</label>
-      <input name="document" id="document" type="file" accept=".pdf,.jpg,.jpeg" required>
+    <div class="inner-page-header">
+      <div class="breadcrumb-row">
+        <a href="{{ url_for('dashboard') }}" class="breadcrumb-link">Dashboard</a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="{{ url_for('form_select') }}" class="breadcrumb-link">Choose Form</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">Upload Documents</span>
+      </div>
+      <div class="inner-title-row">
+        <div class="form-type-badge" style="background:{{ form_info.color }}22;color:{{ form_info.color }}">
+          {{ form_info.icon }} {{ form_info.label }}
+        </div>
+        <h1 class="inner-title">Upload Required Documents</h1>
+        <p class="inner-sub">Upload all documents listed below. FormAssist will automatically extract your information from each one using OCR.</p>
+      </div>
     </div>
 
-    <p id="fileMessage" class="helper-text" aria-live="polite">
-      Accepted file types: PDF, JPG, JPEG.
-    </p>
+    <!-- STEP INDICATOR -->
+    <div class="step-bar">
+      <div class="step-item done"><div class="step-dot">✓</div><span>Choose Form</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item active"><div class="step-dot">2</div><span>Upload Docs</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">3</div><span>Review OCR</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">4</div><span>Fill Form</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">5</div><span>Submit</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">6</div><span>Download</span></div>
+    </div>
 
-    <div id="filePreview" class="file-preview"></div>
+    <div class="upload-layout">
+      <!-- UPLOAD FORM -->
+      <div class="upload-main">
+        <form action="{{ url_for('upload_documents') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+          <input type="hidden" name="form_type" value="{{ form_type }}">
 
-    <button type="submit" class="btn btn-primary">Upload</button>
-  </form>
+          <div class="upload-docs-grid">
+            {% for doc in required_docs %}
+            <div class="upload-doc-card" id="doc-card-{{ doc.name }}">
+              <div class="udc-header">
+                <div class="udc-num">{{ loop.index }}</div>
+                <div class="udc-info">
+                  <div class="udc-label">{{ doc.label }}</div>
+                  <div class="udc-meta">{{ doc.accept|replace(',','  ') }} · Max {{ doc.max_kb }} KB</div>
+                </div>
+                <div class="udc-status" id="status-{{ doc.name }}">
+                  <span class="udc-pending">⏳ Pending</span>
+                </div>
+              </div>
+              <div class="udc-drop-zone" id="dropzone-{{ doc.name }}"
+                   onclick="document.getElementById('{{ doc.name }}').click()"
+                   ondragover="handleDragOver(event,'{{ doc.name }}')"
+                   ondragleave="handleDragLeave(event,'{{ doc.name }}')"
+                   ondrop="handleDrop(event,'{{ doc.name }}')">
+                <input type="file"
+                       name="{{ doc.name }}"
+                       id="{{ doc.name }}"
+                       accept="{{ doc.accept }}"
+                       data-max-kb="{{ doc.max_kb }}"
+                       onchange="handleFileChange(this,'{{ doc.name }}')"
+                       style="display:none">
+                <div class="udc-drop-inner" id="drop-inner-{{ doc.name }}">
+                  <div class="udc-drop-icon">📂</div>
+                  <div class="udc-drop-text">Click or drag & drop file here</div>
+                  <div class="udc-drop-hint">{{ doc.accept }}</div>
+                </div>
+              </div>
+              <div class="udc-preview" id="preview_{{ doc.name }}"></div>
+              <div class="udc-error" id="error-{{ doc.name }}"></div>
+            </div>
+            {% endfor %}
+          </div>
 
-  <section class="ocr-card">
-    <h2>OCR extracted text</h2>
-    <div id="ocr-result">{{ ocr_text }}</div>
-  </section>
-</section>
+          <!-- UPLOAD PROGRESS BAR -->
+          <div class="upload-progress-wrap" id="uploadProgress" style="display:none">
+            <div class="upload-progress-label" id="progressLabel">Uploading...</div>
+            <div class="upload-progress-bar"><div class="upload-progress-fill" id="progressFill"></div></div>
+          </div>
+
+          <div class="upload-footer">
+            <div class="upload-footer-info">
+              <span id="fileCount">0 / {{ required_docs|length }}</span> documents selected
+              <span class="upload-compress-note">🗜 All files auto-compressed before upload</span>
+            </div>
+            <button type="submit" class="upload-submit-btn" id="uploadSubmitBtn" disabled>
+              Upload All & Extract with AI →
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- SIDEBAR INFO -->
+      <div class="upload-sidebar">
+        <div class="upload-info-card">
+          <h4>📋 Required Documents</h4>
+          <ul class="req-doc-list">
+            {% for doc in required_docs %}
+            <li class="req-doc-item" id="req-{{ doc.name }}">
+              <span class="req-doc-check" id="check-{{ doc.name }}">○</span>
+              {{ doc.label }}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="upload-tips-card">
+          <h4>💡 Tips for Best Results</h4>
+          <ul>
+            <li>Use a clear, well-lit photo</li>
+            <li>Ensure full document is visible</li>
+            <li>Aadhaar: photograph front side</li>
+            <li>PAN: show PAN number clearly</li>
+            <li>Marksheet: include full page</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+var TOTAL_DOCS = {{ required_docs|length }};
+var selectedCount = 0;
+</script>
 {% endblock %}
