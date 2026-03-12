@@ -170,12 +170,5 @@ Always work on your own branch and raise a Pull Request to merge into main.
 
 ---
 
-## Coming Soon
-- Docker setup for deployment
-- Backend API documentation
-- Frontend usage guide
-- Hosting instructions
 
----
-
-> This project is developed as a college project by students of Mumbai University.
+> This project is developed as a college project by students
