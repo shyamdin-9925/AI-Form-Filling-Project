@@ -25,17 +25,34 @@
       <div class="result-banner-emoji">🎉</div>
       <h1 class="result-banner-title">Form Submitted Successfully!</h1>
       <p class="result-banner-sub">
-        Your <strong>{{ sub.form_name if sub else 'form' }}</strong> has been submitted
-        {% if sub and sub.get('submitted_at') %}on <strong>{{ sub.submitted_at }}</strong>{% endif %}.
+        Your <strong>{{ sub.get('form_name', 'form') if sub else 'form' }}</strong> has been submitted
+        {% if sub and sub.get('submitted_at') %}on <strong>{{ sub.get('submitted_at') }}</strong>{% endif %}.
       </p>
       {% if sub %}
       <div class="result-meta-chips">
-        <span class="result-chip">ID: #{{ sub.id }}</span>
-        <span class="result-chip">{{ sub.form_icon }} {{ sub.form_name }}</span>
+        <span class="result-chip">ID: #{{ sub.get('id', '') }}</span>
+        <span class="result-chip">{{ sub.get('form_icon', '') }} {{ sub.get('form_name', '') }}</span>
         <span class="result-chip result-chip--green">✓ Submitted</span>
       </div>
       {% endif %}
     </div>
+
+    <!-- HIDDEN DATA for JavaScript -->
+    {% if sub %}
+    <div id="formDataStore"
+         data-form-type="{{ form_type }}"
+         data-form-name="{{ sub.get('form_name', '') }}"
+         data-form-data="{{ sub.get('data', {})|tojson|e }}"
+         style="display:none">
+    </div>
+    {% else %}
+    <div id="formDataStore"
+         data-form-type="{{ form_type }}"
+         data-form-name=""
+         data-form-data="{}"
+         style="display:none">
+    </div>
+    {% endif %}
 
     <!-- THREE OUTPUT CARDS -->
     <h2 class="result-outputs-title">Get Your Outputs</h2>
@@ -95,9 +112,9 @@
           <div id="autofill-status" class="roc-status"></div>
         </div>
         {% else %}
-        <p>Web autofill via Selenium is only available for the Scholarship form. This is because FormAssist controls the field IDs on the test scholarship portal.</p>
+        <p>Web autofill via Selenium is only available for the Scholarship form.</p>
         <div class="roc-disabled-note">
-          <span>This feature is not available for {{ sub.form_name if sub else 'this form' }}.</span>
+          <span>This feature is not available for {{ sub.get('form_name', 'this form') if sub else 'this form' }}.</span>
           <a href="{{ url_for('upload_page', form_type='scholarship') }}" class="roc-disabled-link">Try the Scholarship Form →</a>
         </div>
         {% endif %}
@@ -115,30 +132,39 @@
 </div>
 
 <script>
-var FORM_DATA = {{ sub.data|tojson if sub else '{}' }};
-var FORM_TYPE = "{{ form_type }}";
-var FORM_NAME = "{{ sub.form_name if sub else '' }}";
+// Read data from hidden div — avoids Jinja2 inside JS errors
+var store    = document.getElementById('formDataStore');
+var FORM_TYPE = store.getAttribute('data-form-type');
+var FORM_NAME = store.getAttribute('data-form-name');
+var FORM_DATA = {};
+try {
+  FORM_DATA = JSON.parse(store.getAttribute('data-form-data'));
+} catch(e) {
+  FORM_DATA = {};
+}
 
 function downloadPDF() {
   var statusEl = document.getElementById('pdf-status');
   statusEl.textContent = '⏳ Generating PDF...';
   statusEl.style.color = '#7c3aed';
-  fetch('/output/download/pdf', {
+  fetch('/download/pdf', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({form_type: FORM_TYPE, fields: FORM_DATA, form_name: FORM_NAME})
   })
-  .then(function(res){ return res.blob(); })
-  .then(function(blob){
+  .then(function(res) { return res.blob(); })
+  .then(function(blob) {
     var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'FormAssist_' + FORM_TYPE + '.txt';
-    document.body.appendChild(a); a.click();
+    var a   = document.createElement('a');
+    a.href     = url;
+    a.download = 'FormAssist_' + FORM_TYPE + '.pdf';
+    document.body.appendChild(a);
+    a.click();
     document.body.removeChild(a);
-    statusEl.textContent = '✓ Download started!';
+    statusEl.textContent = '✓ PDF downloaded successfully!';
     statusEl.style.color = '#059669';
   })
-  .catch(function(){
+  .catch(function() {
     statusEl.textContent = '⚠ Download failed. Try again.';
     statusEl.style.color = '#dc2626';
   });
