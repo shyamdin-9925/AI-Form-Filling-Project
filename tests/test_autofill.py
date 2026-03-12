@@ -3,27 +3,30 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models.autofill_model import predict_fields
+from services.ocr_service import extract_text
+from services.ai_service import process_ocr_text, get_autofill_suggestions
+from services.form_mapping_service import get_form_fields
 
-# Simulating data that would come from nlp_processor
-sample_data = {
-    "name":         "Rahul Sharma",
-    "dob":          "15/08/1995",
-    "phone":        "9876543210",
-    "email":        "rahul@email.com",
-    "aadhaar":      "123456789012",
-    "pan":          "ABCDE1234F",
-    "address":      "123 MG Road, Pune, Maharashtra",
-    "account_no":   "9876543210123",
-    "ifsc":         "SBIN0001234",
-    "bank_name":    "State Bank of India",
-    "college_name": "Mumbai University",
-    "enrollment_no":"MU2021001234",
-    "course_name":  "B.Sc Computer Science",
-}
+# Step 1 — OCR on Aadhaar card
+print("Step 1 - OCR on Aadhaar card:")
+raw_text = extract_text("tests/sample.jpg")
+print(raw_text)
 
-result = predict_fields(sample_data)
-
-print("Autofill output:")
-for key, value in result.items():
+# Step 2 — Extract entities
+print("\nStep 2 - Extracted entities:")
+entities = process_ocr_text(raw_text)
+for key, value in entities.items():
     print(f"  {key}: {value}")
+
+# Step 3 — Get autofill suggestions
+print("\nStep 3 - Autofill suggestions for form:")
+suggestions = get_autofill_suggestions(entities)
+for key, value in suggestions.items():
+    print(f"  {key}: {value}")
+
+# Step 4 — Get form fields
+print("\nStep 4 - Scholarship form fields:")
+fields = get_form_fields('scholarship')
+for field in fields:
+    filled_value = suggestions.get(field['name'], '')
+    print(f"  {field['label']}: {filled_value}")
