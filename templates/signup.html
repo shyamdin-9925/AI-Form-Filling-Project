@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Create Account | FormAssist{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-split">
+
+    <!-- LEFT PANEL -->
+    <div class="auth-left">
+      <div class="auth-left-inner">
+        <div class="auth-left-logo">
+          <div class="fa-brand-mark lg">F</div>
+          <span class="auth-left-brandname">FormAssist</span>
+        </div>
+        <h2 class="auth-left-headline">Start filling<br>forms smarter ✨</h2>
+        <p class="auth-left-sub">Create your free account and let AI handle the tedious form-filling paperwork — forever.</p>
+        <div class="auth-left-perks">
+          <div class="auth-perk">🆓 Free to get started</div>
+          <div class="auth-perk">📷 Upload documents once, reuse everywhere</div>
+          <div class="auth-perk">🗜 Auto-compression for govt websites</div>
+          <div class="auth-perk">🌐 Selenium web autofill for scholarship forms</div>
+        </div>
+        <p class="auth-left-foot">Already have an account? <a href="{{ url_for('login') }}">Sign in →</a></p>
+      </div>
+    </div>
+
+    <!-- RIGHT FORM -->
+    <div class="auth-right">
+      <div class="auth-form-box">
+        <h2 class="auth-form-title">Create your account</h2>
+        <p class="auth-form-sub">Takes less than 30 seconds</p>
+
+        {% if error %}
+        <div class="auth-error">⚠ {{ error }}</div>
+        {% endif %}
+
+        <form action="{{ url_for('auth_signup') }}" method="POST" id="signupForm" novalidate>
+          <div class="fa-field">
+            <label for="name">Full name</label>
+            <input type="text" name="name" id="name" placeholder="Rahul Sharma" autocomplete="name" required>
+            <span class="fa-field-err" id="err-name"></span>
+          </div>
+          <div class="fa-field">
+            <label for="email">Email address</label>
+            <input type="email" name="email" id="email" placeholder="rahul@email.com" autocomplete="email" required>
+            <span class="fa-field-err" id="err-email"></span>
+          </div>
+          <div class="auth-field-row">
+            <div class="fa-field">
+              <label for="password">Password</label>
+              <div class="fa-input-eye">
+                <input type="password" name="password" id="password" placeholder="Min 6 chars" required>
+                <button type="button" class="eye-btn" onclick="toggleEye('password',this)">👁</button>
+              </div>
+              <span class="fa-field-err" id="err-password"></span>
+            </div>
+            <div class="fa-field">
+              <label for="confirm">Confirm password</label>
+              <div class="fa-input-eye">
+                <input type="password" name="confirm" id="confirm" placeholder="Repeat" required>
+                <button type="button" class="eye-btn" onclick="toggleEye('confirm',this)">👁</button>
+              </div>
+              <span class="fa-field-err" id="err-confirm"></span>
+            </div>
+          </div>
+          <div class="pwd-meter" id="pwd-meter" style="display:none">
+            <div class="pwd-meter-bar"><div class="pwd-meter-fill" id="pwd-fill"></div></div>
+            <span class="pwd-meter-label" id="pwd-label"></span>
+          </div>
+          <button type="submit" class="auth-submit-btn">Create Account →</button>
+        </form>
+        <p class="auth-switch-foot">Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function toggleEye(id,btn){var i=document.getElementById(id);i.type=i.type==='password'?'text':'password';btn.textContent=i.type==='password'?'👁':'🙈';}
+document.getElementById('password').addEventListener('input',function(){
+  var v=this.value,m=document.getElementById('pwd-meter'),f=document.getElementById('pwd-fill'),l=document.getElementById('pwd-label');
+  if(!v){m.style.display='none';return;}m.style.display='flex';
+  var s=0;if(v.length>=6)s++;if(v.length>=10)s++;if(/[A-Z]/.test(v))s++;if(/[0-9]/.test(v))s++;if(/[^A-Za-z0-9]/.test(v))s++;
+  var labs=['','Weak','Fair','Good','Strong','Very Strong'],cols=['','#ef4444','#f59e0b','#eab308','#22c55e','#10b981'];
+  f.style.width=(s*20)+'%';f.style.background=cols[s];l.textContent=labs[s];l.style.color=cols[s];
+});
+document.getElementById('signupForm').addEventListener('submit',function(e){
+  var ok=true;
+  document.querySelectorAll('.fa-field-err').forEach(function(el){el.textContent='';});
+  document.querySelectorAll('input').forEach(function(el){el.classList.remove('input-err');});
+  var n=document.getElementById('name'),em=document.getElementById('email'),p=document.getElementById('password'),c=document.getElementById('confirm');
+  if(!n.value.trim()){document.getElementById('err-name').textContent='Name required.';n.classList.add('input-err');ok=false;}
+  if(!em.value.trim()){document.getElementById('err-email').textContent='Email required.';em.classList.add('input-err');ok=false;}
+  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.value)){document.getElementById('err-email').textContent='Enter a valid email.';em.classList.add('input-err');ok=false;}
+  if(!p.value){document.getElementById('err-password').textContent='Password required.';p.classList.add('input-err');ok=false;}
+  else if(p.value.length<6){document.getElementById('err-password').textContent='Min 6 characters.';p.classList.add('input-err');ok=false;}
+  if(p.value&&c.value!==p.value){document.getElementById('err-confirm').textContent='Passwords do not match.';c.classList.add('input-err');ok=false;}
+  if(!ok)e.preventDefault();
+});
+</script>
+{% endblock %}

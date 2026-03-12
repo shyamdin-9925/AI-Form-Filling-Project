@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard | FormAssist{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+{% block content %}
+<div class="dash-page">
+  <div class="container-xl px-4">
+
+    <!-- WELCOME HEADER -->
+    <div class="dash-header">
+      <div class="dash-header-left">
+        <div class="dash-avatar" style="background:{{ current_user.avatar_color }}">{{ current_user.name[0]|upper }}</div>
+        <div>
+          <h1 class="dash-welcome">Welcome back, <span>{{ user.name.split(' ')[0] }}</span> 👋</h1>
+          <p class="dash-sub">Manage your form submissions and start new ones</p>
+        </div>
+      </div>
+      <a href="{{ url_for('form_select') }}" class="dash-new-btn">
+        <span>+</span> Start New Form
+      </a>
+    </div>
+
+    <!-- STATS ROW -->
+    <div class="dash-stats">
+      <div class="dash-stat dash-stat--total">
+        <div class="dash-stat-icon">📋</div>
+        <div class="dash-stat-val">{{ stats.total }}</div>
+        <div class="dash-stat-lbl">Total Submissions</div>
+      </div>
+      <div class="dash-stat dash-stat--submitted">
+        <div class="dash-stat-icon">✅</div>
+        <div class="dash-stat-val">{{ stats.submitted }}</div>
+        <div class="dash-stat-lbl">Submitted</div>
+      </div>
+      <div class="dash-stat dash-stat--draft">
+        <div class="dash-stat-icon">✏️</div>
+        <div class="dash-stat-val">{{ stats.draft }}</div>
+        <div class="dash-stat-lbl">Drafts</div>
+      </div>
+      <div class="dash-stat dash-stat--forms">
+        <div class="dash-stat-icon">🗂</div>
+        <div class="dash-stat-val">9</div>
+        <div class="dash-stat-lbl">Form Types Available</div>
+      </div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="dash-quick">
+      <h3 class="dash-section-title">Quick Start</h3>
+      <div class="dash-quick-grid">
+        {% for form in form_types_list[:4] %}
+        <a href="{{ url_for('upload_page', form_type=form.type) }}" class="dash-quick-card" style="--qc-color:{{ form.color }}">
+          <span class="dqc-icon">{{ form.icon }}</span>
+          <span class="dqc-label">{{ form.label }}</span>
+          <span class="dqc-arrow">→</span>
+        </a>
+        {% endfor %}
+      </div>
+      <a href="{{ url_for('form_select') }}" class="dash-see-all">See all 9 form types →</a>
+    </div>
+
+    <!-- SUBMISSIONS TABLE -->
+    <div class="dash-submissions">
+      <div class="dash-section-head">
+        <h3 class="dash-section-title">Past Submissions</h3>
+        <span class="dash-count-badge">{{ submissions|length }}</span>
+      </div>
+
+      {% if submissions %}
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead>
+            <tr>
+              <th>Form Type</th>
+              <th>Submitted At</th>
+              <th>Status</th>
+              <th>ID</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sub in submissions %}
+            <tr>
+              <td>
+                <div class="sub-type-cell">
+                  <span class="sub-type-icon">{{ sub.form_icon }}</span>
+                  <span>{{ sub.form_name }}</span>
+                </div>
+              </td>
+              <td class="sub-date">{{ sub.submitted_at }}</td>
+              <td><span class="sub-status-pill {% if sub.status=='Submitted' %}pill-submitted{% else %}pill-draft{% endif %}">{{ sub.status }}</span></td>
+              <td class="sub-id">#{{ sub.id }}</td>
+              <td>
+                <a href="{{ url_for('form_select') }}" class="dash-action-link">Fill Again</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="dash-empty">
+        <div class="dash-empty-icon">📋</div>
+        <h4>No submissions yet</h4>
+        <p>Start by filling your first form. AI will extract data from your documents automatically.</p>
+        <a href="{{ url_for('form_select') }}" class="dash-new-btn">Start Your First Form →</a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

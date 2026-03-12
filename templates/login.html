@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Sign In | FormAssist{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-split">
+
+    <!-- LEFT PANEL -->
+    <div class="auth-left">
+      <div class="auth-left-inner">
+        <div class="auth-left-logo">
+          <div class="fa-brand-mark lg">F</div>
+          <span class="auth-left-brandname">FormAssist</span>
+        </div>
+        <h2 class="auth-left-headline">Welcome<br>back 👋</h2>
+        <p class="auth-left-sub">Sign in to access your dashboard, view past submissions and fill new forms faster with AI.</p>
+        <div class="auth-left-perks">
+          <div class="auth-perk">🤖 AI autofill from your documents</div>
+          <div class="auth-perk">📋 9 form types supported</div>
+          <div class="auth-perk">📄 PDF + ZIP + Web autofill outputs</div>
+          <div class="auth-perk">🔒 Secure session management</div>
+        </div>
+        <p class="auth-left-foot">Don't have an account? <a href="{{ url_for('signup') }}">Sign up free →</a></p>
+      </div>
+    </div>
+
+    <!-- RIGHT FORM -->
+    <div class="auth-right">
+      <div class="auth-form-box">
+        <h2 class="auth-form-title">Sign in to your account</h2>
+        <p class="auth-form-sub">Enter your credentials below</p>
+
+        {% if error %}
+        <div class="auth-error">⚠ {{ error }}</div>
+        {% endif %}
+
+        <form action="{{ url_for('auth_login') }}" method="POST" id="loginForm" novalidate>
+          <div class="fa-field">
+            <label for="email">Email address</label>
+            <input type="email" name="email" id="email" placeholder="you@email.com" autocomplete="email" required>
+            <span class="fa-field-err" id="err-email"></span>
+          </div>
+          <div class="fa-field">
+            <label for="password">Password</label>
+            <div class="fa-input-eye">
+              <input type="password" name="password" id="password" placeholder="••••••••" autocomplete="current-password" required>
+              <button type="button" class="eye-btn" onclick="toggleEye('password',this)">👁</button>
+            </div>
+            <span class="fa-field-err" id="err-password"></span>
+          </div>
+          <button type="submit" class="auth-submit-btn">Sign In →</button>
+        </form>
+
+        <div class="auth-demo-box">
+          <div class="auth-demo-title">Demo Account</div>
+          <div class="auth-demo-creds">Sign up with any email to try the full app</div>
+        </div>
+
+        <p class="auth-switch-foot">New to FormAssist? <a href="{{ url_for('signup') }}">Create a free account</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function toggleEye(id,btn){var i=document.getElementById(id);i.type=i.type==='password'?'text':'password';btn.textContent=i.type==='password'?'👁':'🙈';}
+document.getElementById('loginForm').addEventListener('submit',function(e){
+  var ok=true;
+  var em=document.getElementById('email'),pw=document.getElementById('password');
+  document.querySelectorAll('.fa-field-err').forEach(function(el){el.textContent='';});
+  [em,pw].forEach(function(el){el.classList.remove('input-err');});
+  if(!em.value.trim()){document.getElementById('err-email').textContent='Email is required.';em.classList.add('input-err');ok=false;}
+  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.value)){document.getElementById('err-email').textContent='Enter a valid email.';em.classList.add('input-err');ok=false;}
+  if(!pw.value){document.getElementById('err-password').textContent='Password is required.';pw.classList.add('input-err');ok=false;}
+  if(!ok)e.preventDefault();
+});
+</script>
+{% endblock %}

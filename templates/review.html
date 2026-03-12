@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Review & Submit | FormAssist{% endblock %}
+{% block content %}
+<div class="inner-page">
+  <div class="container-xl px-4">
+
+    <div class="inner-page-header">
+      <div class="breadcrumb-row">
+        <a href="{{ url_for('dashboard') }}" class="breadcrumb-link">Dashboard</a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="{{ url_for('form_select') }}" class="breadcrumb-link">Choose Form</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">Review & Submit</span>
+      </div>
+      <div class="form-type-badge" style="background:{{ form_info.color }}22;color:{{ form_info.color }}">
+        {{ form_info.icon }} {{ form_info.label }}
+      </div>
+      <h1 class="inner-title">Review Your Submission</h1>
+      <p class="inner-sub">Read through all fields carefully before submitting. This is your last chance to edit.</p>
+    </div>
+
+    <!-- STEP BAR -->
+    <div class="step-bar">
+      <div class="step-item done"><div class="step-dot">✓</div><span>Choose</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>Upload</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>OCR</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>Fill</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item active"><div class="step-dot">5</div><span>Submit</span></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-dot">6</div><span>Download</span></div>
+    </div>
+
+    <div class="review-layout">
+      <!-- DATA TABLE -->
+      <div class="review-main">
+        <div class="review-table-card">
+          <div class="review-table-head">
+            <h3>Form Data — {{ form_info.label }}</h3>
+            <a href="{{ url_for('form_fill_get', form_type=form_type) }}" class="review-edit-btn">✏ Edit Fields</a>
+          </div>
+          <div class="review-table-body">
+            {% for key, value in data.items() %}
+            {% if key != 'form_type' %}
+            <div class="review-row">
+              <div class="review-key">{{ key|replace('_',' ')|title }}</div>
+              <div class="review-val">{% if value %}{{ value }}{% else %}<em class="review-empty">Not provided</em>{% endif %}</div>
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- SIDEBAR -->
+      <div class="review-sidebar">
+        <div class="review-meta-card">
+          <h4>Submission Details</h4>
+          <div class="review-meta-row"><span>Form Type</span><strong>{{ form_info.label }}</strong></div>
+          <div class="review-meta-row"><span>Status</span><span class="pill-draft">Draft</span></div>
+          <div class="review-meta-row"><span>Fields Filled</span>
+            <strong>{{ data.values()|list|length }} fields</strong>
+          </div>
+        </div>
+
+        <form action="{{ url_for('review_page') }}" method="POST" id="reviewForm">
+          <div class="review-declaration">
+            <label class="review-check-label">
+              <input type="checkbox" id="declarationCheck" onchange="toggleSubmitBtn(this)">
+              <span>I confirm all the information above is correct and accurate to the best of my knowledge.</span>
+            </label>
+          </div>
+          <button type="submit" class="btn-primary-fa btn-block-fa" id="submitFinalBtn" disabled>
+            ✓ Final Submit
+          </button>
+        </form>
+
+        <a href="{{ url_for('form_fill_get', form_type=form_type) }}" class="btn-outline-secondary-fa btn-block-fa" style="margin-top:.5rem">
+          ← Edit Fields
+        </a>
+        <a href="{{ url_for('form_select') }}" class="btn-ghost-fa btn-block-fa">
+          ✕ Start Over
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+function toggleSubmitBtn(cb){
+  document.getElementById('submitFinalBtn').disabled = !cb.checked;
+}
+</script>
+{% endblock %}

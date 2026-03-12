@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}Form Submitted! | FormAssist{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/web_autofill.js') }}" defer></script>{% endblock %}
+{% block content %}
+<div class="inner-page">
+  <div class="container-xl px-4">
+
+    <!-- STEP BAR -->
+    <div class="step-bar" style="margin-top:24px">
+      <div class="step-item done"><div class="step-dot">✓</div><span>Choose</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>Upload</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>OCR</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>Fill</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item done"><div class="step-dot">✓</div><span>Submit</span></div>
+      <div class="step-line done"></div>
+      <div class="step-item active done"><div class="step-dot">✓</div><span>Download</span></div>
+    </div>
+
+    <!-- SUCCESS BANNER -->
+    <div class="result-banner">
+      <div class="result-banner-emoji">🎉</div>
+      <h1 class="result-banner-title">Form Submitted Successfully!</h1>
+      <p class="result-banner-sub">
+        Your <strong>{{ sub.form_name if sub else 'form' }}</strong> has been submitted
+        {% if sub and sub.get('submitted_at') %}on <strong>{{ sub.submitted_at }}</strong>{% endif %}.
+      </p>
+      {% if sub %}
+      <div class="result-meta-chips">
+        <span class="result-chip">ID: #{{ sub.id }}</span>
+        <span class="result-chip">{{ sub.form_icon }} {{ sub.form_name }}</span>
+        <span class="result-chip result-chip--green">✓ Submitted</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- THREE OUTPUT CARDS -->
+    <h2 class="result-outputs-title">Get Your Outputs</h2>
+    <div class="result-outputs-grid">
+
+      <!-- OUTPUT 1: PDF -->
+      <div class="result-output-card">
+        <div class="roc-icon" style="background:#ede9fe;color:#7c3aed">📄</div>
+        <h3>Download Filled Form PDF</h3>
+        <p>A complete PDF with all your form data pre-filled. Use it for printing, physical submission, or reference while filling the real online form.</p>
+        <ul class="roc-features">
+          <li>✓ Form title and all field values</li>
+          <li>✓ Date of generation</li>
+          <li>✓ FormAssist watermark</li>
+          <li>✓ Available for all 9 form types</li>
+        </ul>
+        <button class="roc-btn roc-btn--purple" onclick="downloadPDF()">
+          📄 Download Filled Form PDF
+        </button>
+        <div id="pdf-status" class="roc-status"></div>
+      </div>
+
+      <!-- OUTPUT 2: ZIP -->
+      <div class="result-output-card">
+        <div class="roc-icon" style="background:#dcfce7;color:#059669">📦</div>
+        <h3>Download Compressed Documents</h3>
+        <p>All your uploaded documents compressed to meet government website size limits — ready to upload directly without manual compression.</p>
+        <ul class="roc-features">
+          <li>✓ Aadhaar / PAN under 200 KB</li>
+          <li>✓ Passport photo under 50 KB</li>
+          <li>✓ Marksheets / PDFs under 500 KB</li>
+          <li>✓ Neatly packaged in a ZIP file</li>
+        </ul>
+        <a href="{{ url_for('download_zip') }}" class="roc-btn roc-btn--green">
+          📦 Download Compressed Documents ZIP
+        </a>
+      </div>
+
+      <!-- OUTPUT 3: WEB AUTOFILL (scholarship only) -->
+      <div class="result-output-card {% if form_type != 'scholarship' %}roc--disabled{% endif %}">
+        <div class="roc-icon" style="background:#fef3c7;color:#d97706">🌐</div>
+        <h3>Web Autofill via Selenium</h3>
+        {% if form_type == 'scholarship' %}
+        <p>Paste the scholarship website URL below. FormAssist will open Chrome and automatically fill all available form fields using Selenium.</p>
+        <ul class="roc-features">
+          <li>✓ Opens real Chrome browser window</li>
+          <li>✓ Fills 10+ fields automatically</li>
+          <li>✓ You review and submit manually</li>
+          <li>✓ Works on test scholarship portal</li>
+        </ul>
+        <div class="web-autofill-section">
+          <label>Scholarship Website URL</label>
+          <input type="url" id="targetUrl" placeholder="http://localhost:5001 or paste URL">
+          <button class="roc-btn roc-btn--amber" onclick="startWebAutofill()">
+            🌐 Open & Auto-fill in Chrome →
+          </button>
+          <div id="autofill-status" class="roc-status"></div>
+        </div>
+        {% else %}
+        <p>Web autofill via Selenium is only available for the Scholarship form. This is because FormAssist controls the field IDs on the test scholarship portal.</p>
+        <div class="roc-disabled-note">
+          <span>This feature is not available for {{ sub.form_name if sub else 'this form' }}.</span>
+          <a href="{{ url_for('upload_page', form_type='scholarship') }}" class="roc-disabled-link">Try the Scholarship Form →</a>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- BOTTOM ACTIONS -->
+    <div class="result-footer-actions">
+      <a href="{{ url_for('dashboard') }}" class="btn-outline-secondary-fa">← Back to Dashboard</a>
+      <a href="{{ url_for('form_select') }}" class="btn-primary-fa">Fill Another Form →</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var FORM_DATA = {{ sub.data|tojson if sub else '{}' }};
+var FORM_TYPE = "{{ form_type }}";
+var FORM_NAME = "{{ sub.form_name if sub else '' }}";
+
+function downloadPDF() {
+  var statusEl = document.getElementById('pdf-status');
+  statusEl.textContent = '⏳ Generating PDF...';
+  statusEl.style.color = '#7c3aed';
+  fetch('/output/download/pdf', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({form_type: FORM_TYPE, fields: FORM_DATA, form_name: FORM_NAME})
+  })
+  .then(function(res){ return res.blob(); })
+  .then(function(blob){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'FormAssist_' + FORM_TYPE + '.txt';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    statusEl.textContent = '✓ Download started!';
+    statusEl.style.color = '#059669';
+  })
+  .catch(function(){
+    statusEl.textContent = '⚠ Download failed. Try again.';
+    statusEl.style.color = '#dc2626';
+  });
+}
+</script>
+{% endblock %}

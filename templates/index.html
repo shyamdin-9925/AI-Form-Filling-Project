@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}FormAssist — AI-Powered Form Automation{% endblock %}
+{% block content %}
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="hero-bg-grid"></div>
+  <div class="container">
+    <div class="hero-inner">
+      <div class="hero-badge">🤖 AI-Powered · OCR Extraction · 9 Form Types</div>
+      <h1 class="hero-title">Stop typing the<br>same info <span class="hero-highlight">over & over</span></h1>
+      <p class="hero-desc">Upload your Aadhaar, PAN, marksheets once — FormAssist reads them automatically and fills scholarship, visa, passport, KYC and 5 more forms instantly.</p>
+      <div class="hero-actions">
+        <a href="{{ url_for('signup') }}" class="fa-btn-hero">Get Started Free →</a>
+        <a href="{{ url_for('login') }}" class="fa-btn-hero-outline">Sign In</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hero-stat-num">9</span><span class="hero-stat-lbl">Form Types</span></div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat"><span class="hero-stat-num">OCR</span><span class="hero-stat-lbl">Auto-Extract</span></div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat"><span class="hero-stat-num">PDF</span><span class="hero-stat-lbl">+ ZIP Output</span></div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat"><span class="hero-stat-num">Selenium</span><span class="hero-stat-lbl">Web Autofill</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="hiw-section">
+  <div class="container">
+    <div class="section-label">How It Works</div>
+    <h2 class="section-title">Three steps. Minutes saved.</h2>
+    <p class="section-desc">FormAssist does the hard work so you don't have to type the same data repeatedly.</p>
+    <div class="hiw-steps">
+      <div class="hiw-step">
+        <div class="hiw-step-num">01</div>
+        <div class="hiw-step-icon">☁️</div>
+        <h3>Upload Documents</h3>
+        <p>Upload your Aadhaar, PAN, marksheets, passbook and other documents. FormAssist shows exactly which documents each form needs.</p>
+      </div>
+      <div class="hiw-arrow">→</div>
+      <div class="hiw-step">
+        <div class="hiw-step-num">02</div>
+        <div class="hiw-step-icon">🔍</div>
+        <h3>AI Extracts Data</h3>
+        <p>OCR technology scans every uploaded document and extracts name, DOB, Aadhaar number, PAN, bank details, percentages and more.</p>
+      </div>
+      <div class="hiw-arrow">→</div>
+      <div class="hiw-step">
+        <div class="hiw-step-num">03</div>
+        <div class="hiw-step-icon">✅</div>
+        <h3>Form Pre-Filled</h3>
+        <p>Your selected form appears pre-filled with extracted data. Just check, fill any missing fields manually, and download PDF or use web autofill.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FORM TYPES GRID -->
+<section class="forms-section">
+  <div class="container">
+    <div class="section-label">Supported Forms</div>
+    <h2 class="section-title">9 form types covered</h2>
+    <p class="section-desc">From scholarship applications to income tax returns — FormAssist handles the most common government and institutional forms.</p>
+    <div class="landing-forms-grid">
+      {% for form in form_types_list %}
+      <div class="landing-form-card" style="--card-color:{{ form.color }}">
+        <div class="lfc-icon">{{ form.icon }}</div>
+        <div class="lfc-name">{{ form.label }}</div>
+        <div class="lfc-desc">{{ form.desc }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- OUTPUT SECTION -->
+<section class="output-section">
+  <div class="container">
+    <div class="section-label">What You Get</div>
+    <h2 class="section-title">Three powerful outputs</h2>
+    <div class="output-cards">
+      <div class="output-card">
+        <div class="output-icon" style="background:#ede9fe;color:#7c3aed">📄</div>
+        <h3>Filled Form PDF</h3>
+        <p>Download a complete PDF with all your information filled in. Print it or use it as reference while filling the real online form. Available for all 9 form types.</p>
+        <div class="output-tag">All 9 forms</div>
+      </div>
+      <div class="output-card">
+        <div class="output-icon" style="background:#dcfce7;color:#059669">📦</div>
+        <h3>Compressed Documents ZIP</h3>
+        <p>All uploaded documents automatically compressed to meet government website size limits. Aadhaar under 200KB, photos under 50KB, PDFs under 500KB — ready to upload directly.</p>
+        <div class="output-tag">All 9 forms</div>
+      </div>
+      <div class="output-card featured-output">
+        <div class="output-icon" style="background:#fef3c7;color:#d97706">🌐</div>
+        <h3>Web Autofill via Selenium</h3>
+        <p>For the Scholarship form — paste the URL of any scholarship website and FormAssist opens Chrome automatically and fills all fields instantly using Selenium. The browser stays open so you can review and submit.</p>
+        <div class="output-tag special">Scholarship Only ✦</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-inner">
+      <h2>Ready to stop retyping your details?</h2>
+      <p>Create your free account and fill your first form in under 3 minutes.</p>
+      <a href="{{ url_for('signup') }}" class="fa-btn-hero">Create Free Account →</a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

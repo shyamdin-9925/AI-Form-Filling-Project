@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FormAssist{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="fa-navbar">
+  <div class="container-fluid px-4">
+    <div class="fa-navbar-inner">
+      <!-- BRAND -->
+      <a href="{{ url_for('index') }}" class="fa-brand">
+        <div class="fa-brand-mark">F</div>
+        <span class="fa-brand-name">FormAssist</span>
+        <span class="fa-brand-tag">AI</span>
+      </a>
+
+      <!-- CENTER NAV (desktop) -->
+      <div class="fa-nav-center d-none d-lg-flex">
+        <a href="{{ url_for('index') }}" class="fa-nav-link {% if request.endpoint=='index' %}active{% endif %}">Home</a>
+        {% if current_user %}
+        <a href="{{ url_for('dashboard') }}" class="fa-nav-link {% if request.endpoint=='dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{{ url_for('form_select') }}" class="fa-nav-link {% if request.endpoint=='form_select' %}active{% endif %}">New Form</a>
+        {% endif %}
+      </div>
+
+      <!-- RIGHT -->
+      <div class="fa-nav-right d-flex align-items-center gap-3">
+        {% if current_user %}
+          <div class="fa-user-chip">
+            <div class="fa-user-avatar" style="background:{{ current_user.avatar_color }}">{{ current_user.name[0]|upper }}</div>
+            <span class="d-none d-md-inline">{{ current_user.name.split(' ')[0] }}</span>
+          </div>
+          <a href="{{ url_for('logout') }}" class="fa-btn-outline">Logout</a>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="fa-nav-link">Login</a>
+          <a href="{{ url_for('signup') }}" class="fa-btn-primary">Sign Up Free</a>
+        {% endif %}
+        <button class="fa-menu-btn d-lg-none" id="mobileMenuBtn" onclick="toggleMobileMenu()">☰</button>
+      </div>
+    </div>
+
+    <!-- MOBILE MENU -->
+    <div class="fa-mobile-menu" id="mobileMenu">
+      <a href="{{ url_for('index') }}" class="fa-mob-link">🏠 Home</a>
+      {% if current_user %}
+      <a href="{{ url_for('dashboard') }}" class="fa-mob-link">⊞ Dashboard</a>
+      <a href="{{ url_for('form_select') }}" class="fa-mob-link">📋 New Form</a>
+      <a href="{{ url_for('logout') }}" class="fa-mob-link danger">↩ Logout</a>
+      {% else %}
+      <a href="{{ url_for('login') }}" class="fa-mob-link">→ Login</a>
+      <a href="{{ url_for('signup') }}" class="fa-mob-link">✨ Sign Up</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- FLASH MESSAGES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-container">
+    {% for cat, msg in messages %}
+    <div class="fa-flash fa-flash--{{ cat }}" role="alert">
+      <span>{% if cat=='success' %}✓{% else %}⚠{% endif %} {{ msg }}</span>
+      <button onclick="this.parentElement.remove()" class="fa-flash-close">×</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<!-- MAIN CONTENT -->
+<main>{% block content %}{% endblock %}</main>
+
+<!-- FOOTER -->
+<footer class="fa-footer">
+  <div class="container">
+    <div class="fa-footer-inner">
+      <div class="fa-footer-brand">
+        <div class="fa-brand-mark sm">F</div>
+        <span class="fw-700">FormAssist</span>
+        <span class="fa-footer-tag">AI-Powered Form Automation</span>
+      </div>
+      <div class="fa-footer-links">
+        <span>GitHub: AI-Form-Filling-Project</span>
+        <span>•</span>
+        <span>Built for college project demo</span>
+        <span>•</span>
+        <span>© 2025 FormAssist</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleMobileMenu(){
+  var m = document.getElementById('mobileMenu');
+  m.classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  var menu = document.getElementById('mobileMenu');
+  var btn = document.getElementById('mobileMenuBtn');
+  if(menu && !menu.contains(e.target) && !btn.contains(e.target)){
+    menu.classList.remove('open');
+  }
+});
+setTimeout(function(){
+  document.querySelectorAll('.fa-flash').forEach(function(el){
+    el.style.opacity='0'; el.style.transform='translateY(-8px)';
+    setTimeout(function(){ el.remove(); }, 400);
+  });
+}, 5000);
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
