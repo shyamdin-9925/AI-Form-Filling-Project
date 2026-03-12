@@ -16,17 +16,25 @@ print(raw_text)
 print("\nStep 2 - Extracted entities:")
 entities = process_ocr_text(raw_text)
 for key, value in entities.items():
-    print(f"  {key}: {value}")
+    if value:
+        print(f"  {key}: {value}")
 
 # Step 3 — Get autofill suggestions
-print("\nStep 3 - Autofill suggestions for form:")
+print("\nStep 3 - Autofill suggestions:")
 suggestions = get_autofill_suggestions(entities)
 for key, value in suggestions.items():
-    print(f"  {key}: {value}")
+    if value:
+        print(f"  {key}: {value}")
 
-# Step 4 — Get form fields
-print("\nStep 4 - Scholarship form fields:")
-fields = get_form_fields('scholarship')
-for field in fields:
-    filled_value = suggestions.get(field['name'], '')
-    print(f"  {field['label']}: {filled_value}")
+# Step 4 — Test all 9 form types
+print("\nStep 4 - Testing all form types:")
+form_types = [
+    'scholarship', 'college_admission', 'visa_application',
+    'kyc_verification', 'passport_application', 'driving_licence',
+    'income_tax_return', 'insurance_claim', 'general_purpose'
+]
+for form_type in form_types:
+    fields = get_form_fields(form_type)
+    filled = sum(1 for f in fields if suggestions.get(f['name']))
+    total  = len(fields)
+    print(f"  {form_type}: {filled}/{total} fields filled")
