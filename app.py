@@ -228,7 +228,6 @@ def upload_documents():
 
         results[field_name] = {
             'filename': filename,
-            'raw_text': raw_text,
             'entities': entities,
         }
         for key, value in entities.items():
@@ -257,7 +256,7 @@ def extracted_page():
         formatted[doc_name] = {
             "ok":       True,
             "entities": result.get('entities', {}),
-            "raw_text": result.get('raw_text', ''),
+            "raw_text": "",
         }
 
     # Show required docs not uploaded as failed cards
