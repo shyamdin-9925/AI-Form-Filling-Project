@@ -2,6 +2,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
+from datetime import datetime
 import os
 
 
@@ -9,9 +10,23 @@ def generate_form_pdf(form_type: str, form_data: dict, output_path: str) -> str:
     """
     Generates a filled form as a PDF file.
     Input:  form_type string, form_data dict, output file path
-    Output: path to generated PDF file
+
+    form_data may come in two shapes:
+      1. Direct dict of fields: {'full_name': 'John', 'dob': '01/01/2000', ...}
+      2. JS POST payload:       {'form_type': '...', 'form_name': '...', 'fields': {...}}
+    This function handles both.
     """
-    c      = canvas.Canvas(output_path, pagesize=A4)
+    # ── Unwrap nested payload if needed ────────────────────
+    if 'fields' in form_data and isinstance(form_data['fields'], dict):
+        fields = form_data['fields']
+        if not form_type or form_type == 'general_purpose':
+            form_type = form_data.get('form_type', form_type)
+    else:
+        fields = form_data
+
+    # ── Setup canvas ────────────────────────────────────────
+    os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
+    c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
 
     # ── Header ─────────────────────────────────────────────
@@ -19,67 +34,111 @@ def generate_form_pdf(form_type: str, form_data: dict, output_path: str) -> str:
     c.rect(0, height - 80, width, 80, fill=True, stroke=False)
 
     c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(2 * cm, height - 35, "FormAssist")
+    c.setFont("Helvetica-Bold", 22)
+    c.drawString(2 * cm, height - 38, "FormAssist")
 
     c.setFont("Helvetica", 12)
     form_label = form_type.replace('_', ' ').title()
-    c.drawString(2 * cm, height - 58, f"Form Type: {form_label}")
+    c.drawString(2 * cm, height - 60, f"Form Type: {form_label}")
+
+    # Date top right
+    c.setFont("Helvetica", 9)
+    c.drawRightString(width - 2 * cm, height - 38,
+                      datetime.now().strftime("%d %b %Y"))
 
     # ── Divider ─────────────────────────────────────────────
     c.setStrokeColor(colors.HexColor("#2471A3"))
     c.setLineWidth(1.5)
     c.line(2 * cm, height - 90, width - 2 * cm, height - 90)
 
-    # ── Form Fields ─────────────────────────────────────────
-    y = height - 120
-    c.setFont("Helvetica-Bold", 11)
+    # ── Section title ────────────────────────────────────────
+    y = height - 115
+    c.setFont("Helvetica-Bold", 13)
     c.setFillColor(colors.HexColor("#1B4F72"))
     c.drawString(2 * cm, y, "Extracted and Filled Information")
-    y -= 20
+    y -= 8
 
     c.setLineWidth(0.5)
     c.setStrokeColor(colors.HexColor("#CCCCCC"))
     c.line(2 * cm, y, width - 2 * cm, y)
     y -= 20
 
-    # Skip these internal keys
-    skip_keys = {'form_type', 'csrf_token', 'submit'}
+    # ── Form meta ─────────────────────────────────────────
+    c.setFont("Helvetica", 9)
+    c.setFillColor(colors.HexColor("#888888"))
+    form_name = form_data.get('form_name', form_label)
+    c.drawString(2 * cm, y, f"Form Name: {form_name}")
+    y -= 20
 
-    for key, value in form_data.items():
-        if key in skip_keys or not value:
+    # ── Field rows ──────────────────────────────────────────
+    skip_keys = {'form_type', 'csrf_token', 'submit', 'form_name', 'fields'}
+
+    row_bg_on  = colors.HexColor("#F4F8FB")
+    row_bg_off = colors.white
+    row_index  = 0
+
+    for key, value in fields.items():
+        if key in skip_keys:
+            continue
+        if not value or str(value).strip() == '':
             continue
 
         # New page if running out of space
         if y < 60:
+            _draw_footer(c, width)
             c.showPage()
             y = height - 60
+            row_index = 0
 
         label = key.replace('_', ' ').title()
+        value_str = str(value).strip()
+
+        # Alternating row background
+        bg = row_bg_on if row_index % 2 == 0 else row_bg_off
+        c.setFillColor(bg)
+        c.rect(2 * cm, y - 8, width - 4 * cm, 22, fill=True, stroke=False)
 
         # Label
         c.setFillColor(colors.HexColor("#555555"))
         c.setFont("Helvetica", 10)
-        c.drawString(2 * cm, y, label + ":")
+        c.drawString(2.3 * cm, y + 3, label + ":")
 
-        # Value
-        c.setFillColor(colors.black)
+        # Value — handle long text wrapping
+        c.setFillColor(colors.HexColor("#111111"))
         c.setFont("Helvetica-Bold", 10)
-        c.drawString(8 * cm, y, str(value))
+        if len(value_str) > 55:
+            # Wrap long values (e.g. addresses)
+            c.drawString(8 * cm, y + 3, value_str[:55])
+            y -= 18
+            if y < 60:
+                _draw_footer(c, width)
+                c.showPage()
+                y = height - 60
+            c.setFillColor(colors.HexColor("#111111"))
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(8 * cm, y + 3, value_str[55:110])
+        else:
+            c.drawString(8 * cm, y + 3, value_str)
 
-        # Light underline
-        c.setStrokeColor(colors.HexColor("#EEEEEE"))
-        c.line(2 * cm, y - 5, width - 2 * cm, y - 5)
+        # Separator line
+        c.setStrokeColor(colors.HexColor("#E8E8E8"))
+        c.setLineWidth(0.4)
+        c.line(2 * cm, y - 8, width - 2 * cm, y - 8)
 
-        y -= 25
+        y -= 24
+        row_index += 1
 
     # ── Footer ──────────────────────────────────────────────
-    c.setFillColor(colors.HexColor("#AAAAAA"))
-    c.setFont("Helvetica", 8)
-    c.drawString(2 * cm, 30,
-        "Generated by FormAssist — AI Based Assisted Digital Form Automation System")
-
+    _draw_footer(c, width)
     c.save()
     print(f"PDF generated: {output_path}")
     return output_path
 
+
+def _draw_footer(c, width):
+    c.setFillColor(colors.HexColor("#AAAAAA"))
+    c.setFont("Helvetica", 8)
+    c.drawString(2 * cm, 30,
+        "Generated by FormAssist — AI Based Assisted Digital Form Automation System")
+    c.drawRightString(width - 2 * cm, 30,
+        datetime.now().strftime("%d %b %Y, %I:%M %p"))
