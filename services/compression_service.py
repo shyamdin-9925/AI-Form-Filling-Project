@@ -2,13 +2,13 @@ from PIL import Image
 import os
 
 
-def compress_file(file_path: str, max_kb: int = 200) -> str:
+def compress_file(file_path: str, max_kb: int = 10240) -> str:
     if file_path.lower().endswith('.pdf'):
         return file_path
     return compress_image(file_path, max_kb)
 
 
-def compress_image(path: str, max_kb: int = 200) -> str:
+def compress_image(path: str, max_kb: int = 10240) -> str:
     try:
         img = Image.open(path)
         output_path = path.rsplit('.', 1)[0] + '_compressed.jpg'
@@ -21,6 +21,3 @@ def compress_image(path: str, max_kb: int = 200) -> str:
     except Exception as e:
         print(f"Compression error: {e}")
         return path
-
-
-
