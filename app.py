@@ -44,7 +44,7 @@ def now_str():
 
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in {'pdf', 'jpg', 'jpeg', 'png'}
+           filename.rsplit('.', 1)[1].lower() in {'pdf', 'jpg', 'jpeg', 'png', 'PNG', 'JPG', 'JPEG', 'PDF'}
 
 def login_required(f):
     @wraps(f)
