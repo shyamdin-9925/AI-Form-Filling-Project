@@ -93,109 +93,135 @@ BAD_NAME_WORDS = {
 
 
 # ── FIX 2: Name — per-doc patterns + smart fallback ──────────────
+def _clean_name(raw: str) -> str:
+    """
+    Post-process a raw extracted name:
+    - Remove 1-2 char OCR noise tokens from start/end (e.g. 'Fw', 'I', 'K')
+    - Stop at relational words (son, daughter, of, s/o, d/o)
+    - Remove trailing bad words
+    - Title-case result
+    """
+    # Stop at relational/noise words
+    raw = re.split(r'\b(?:son|daughter|s/o|d/o|w/o|of|and)\b', raw, flags=re.IGNORECASE)[0]
+    words = raw.strip().split()
+    # Remove leading/trailing tokens that are 1-2 chars (OCR noise like Fw, I, K)
+    while words and len(words[0]) <= 2:
+        words.pop(0)
+    while words and len(words[-1]) <= 2:
+        words.pop()
+    # Remove words that are in bad name words
+    words = [w for w in words if w.lower() not in BAD_NAME_WORDS]
+    # Keep only words that look like names (start with letter, mostly alpha)
+    words = [w for w in words if re.match(r'^[A-Za-z][a-z]*$', w) or re.match(r'^[A-Z]+$', w)]
+    if not words:
+        return ""
+    return ' '.join(words[:5]).title()
+
+
 def _extract_name(text, doc_type=None):
 
-    # ── MARKSHEET: "CANDIDATE'S FULL NAME" header then name on next line ──
+    # ── MARKSHEET: "CANDIDATE'S FULL NAME" header → next non-empty line ──
     if doc_type in ('marksheet_10', 'marksheet_12'):
-        # All-caps next line after header: "SHAIKH RAHIL AHMED SHABBIR AHMED"
         match = re.search(
-            r"CANDIDATE['\u2019]*S?\s+FULL\s+NAME[^\n]*\n\s*"
-            r"([A-Z][A-Z\s]{4,50}?)(?:\n|$)",
+            r"CANDIDATE['\u2019]*S?\s+FULL\s+NAME[^\n]*\n\s*([^\n]{3,60})(?:\n|$)",
             text, re.IGNORECASE)
         if match:
-            name = match.group(1).strip().title()
-            # Clean any trailing garbage
-            name = re.sub(r'\s+', ' ', name).strip()
-            if len(name) > 3:
-                return name
-        # Mixed case next line: "Mudashinge Vaishnavee Sanjay"
-        match = re.search(
-            r"CANDIDATE['\u2019]*S?\s+FULL\s+NAME[^\n]*\n\s*"
-            r"([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,4})",
-            text)
-        if match:
-            return match.group(1).strip()
+            raw = match.group(1).strip()
+            # Remove OCR noise: keep only alpha words of 2+ chars
+            words = re.findall(r'\b[A-Za-z]{2,}\b', raw)
+            words = [w for w in words if w.lower() not in BAD_NAME_WORDS]
+            # Remove leading/trailing 1-2 char tokens
+            while words and len(words[0]) <= 2:
+                words.pop(0)
+            while words and len(words[-1]) <= 2:
+                words.pop()
+            if words:
+                return ' '.join(words[:5]).title()
 
-    # ── CASTE CERT: "certify that Mrs/Mr X" ──────────────────────
+    # ── CASTE CERT: "certify that Mrs/Mr/Shri/Smt X Y Z" ────────
     if doc_type == 'caste_cert':
         match = re.search(
-            r'certify\s+that\s+(?:Mrs?\.?|Shri|Smt\.?)?\s*'
-            r'([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,4})',
+            r'certify\s+that\s+(?:Mrs?\.?|Shri\.?|Smt\.?|Dr\.?)?\s*'
+            r'([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,5})',
             text, re.IGNORECASE)
         if match:
-            return match.group(1).strip().title()
+            return _clean_name(match.group(1))
 
-    # ── SCHOOL LEAVING: "Certified that X son of / daughter of" ──
+    # ── SCHOOL LEAVING: "Certified that X son/daughter of" ───────
     if doc_type == 'school_leaving':
         match = re.search(
-            r'[Cc]ertified\s+that\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,3})'
-            r'\s+(?:son|daughter)',
+            r'[Cc]ertified\s+that\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,4})'
+            r'\s+(?:son|daughter|s/o|d/o)',
             text, re.IGNORECASE)
         if match:
-            return match.group(1).strip().title()
+            return _clean_name(match.group(1))
 
-    # ── AADHAAR / PAN / GENERAL: Name label ──────────────────────
-    # Same line: "Name Alka" or "Name: Alka Sharma"
+    # ── AADHAAR / PAN / GENERAL: Name label same line ────────────
     match = re.search(
         r'(?:^|\n)\s*(?:Name|NAME|नाम)\s*[:\-]?\s*'
         r'([A-Za-z][a-z]+(?:\s[A-Za-z][a-z]+){0,3})',
         text, re.MULTILINE)
     if match:
-        words = match.group(1).strip().split()
-        clean = [w for w in words if w.lower() not in BAD_NAME_WORDS]
-        if clean:
-            return ' '.join(clean[:4]).title()
+        return _clean_name(match.group(1))
 
-    # Next line after Name: (Aadhaar OCR noise case)
+    # Name on next line after Name: label (Aadhaar OCR noise)
     match = re.search(
         r'(?:Name|NAME|नाम)\s*[:\-]?\s*\n[^\w\n]*'
         r'([A-Za-z][a-z]+(?:\s[A-Za-z][a-z]+){0,3})',
         text)
     if match:
-        words = match.group(1).strip().split()
-        clean = [w for w in words if w.lower() not in BAD_NAME_WORDS]
-        if clean:
-            return ' '.join(clean[:4]).title()
+        return _clean_name(match.group(1))
 
-    # ── Smart fallback: short line of 1-3 capitalized words ──────
+    # ── Smart fallback: short line of 2-4 capitalized proper words ─
     for line in text.split('\n'):
         words = re.findall(r'\b[A-Za-z]{3,}\b', line)
-        if 1 <= len(words) <= 4:
+        if 2 <= len(words) <= 4:
             clean = [w for w in words if w.lower() not in BAD_NAME_WORDS]
-            if len(clean) >= 1 and len(clean) == len(words):
-                if all(w[0].isupper() for w in clean):
+            if len(clean) == len(words) and all(w[0].isupper() for w in clean):
+                # Extra check: all words should look like name words (not ALL_CAPS keywords)
+                if all(not w.isupper() or len(w) <= 4 for w in clean):
                     return ' '.join(clean[:4]).title()
     return ""
 
 
-# ── FIX 5: Address — strip all noise chars ────────────────────────
+# ── FIX 5: Address — strip all noise chars and stray tokens ──────
 def _extract_address(text):
+    def _clean_addr_line(line):
+        # Strip non-ASCII
+        clean = re.sub(r'[^A-Za-z0-9,\s\-\/]', '', line).strip()
+        # Remove standalone 1-2 char tokens (e.g. 'w', 'clea' is short noise)
+        clean = re.sub(r'\b[A-Za-z]{1,2}\b', '', clean)
+        # Remove short noise words that aren't real (less than 3 chars after strip)
+        # Keep known short but valid words
+        tokens = clean.split()
+        tokens = [t for t in tokens if len(t) >= 3 or t.isdigit()]
+        clean = ' '.join(tokens)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        return clean
+
     pattern = r'(?:Address|ADDRESS|पता)\s*[:\-]?\s*([\s\S]+?)(?:\n\s*\n|\Z)'
     match = re.search(pattern, text, re.IGNORECASE)
     if match:
         lines = [l.strip() for l in match.group(1).split('\n') if l.strip()]
         result_lines = []
         for line in lines[:6]:
-            # Strip all non-ASCII and special chars
-            clean = re.sub(r'[^A-Za-z0-9,\s\-\/]', '', line).strip()
-            clean = re.sub(r'\s+', ' ', clean).strip()
-            # Only keep line if it has at least one real word (3+ letters)
-            # AND is not a single stray letter or symbol
+            clean = _clean_addr_line(line)
+            # Must have at least one real word of 3+ letters or a digit group
             real_words = re.findall(r'\b[A-Za-z]{3,}\b', clean)
             digits     = re.findall(r'\b\d{4,}\b', clean)
-            # Skip very short lines like "w" or "="
-            if (real_words or digits) and len(clean) > 3:
+            if (real_words or digits) and len(clean) > 4:
                 result_lines.append(clean)
             if re.search(r'\b\d{6}\b', line):
                 break
         if result_lines:
             return ', '.join(result_lines)
 
-    # Fallback — grab text surrounding a 6-digit pincode
-    pin_match = re.search(r'(.{20,150}?\b\d{6}\b)', text, re.DOTALL)
+    # Fallback — pincode-based
+    pin_match = re.search(r'(.{20,200}?\b\d{6}\b)', text, re.DOTALL)
     if pin_match:
         addr = re.sub(r'[^A-Za-z0-9,\s\-\/]', ' ', pin_match.group(1))
-        addr = re.sub(r'\b[A-Za-z]\b', '', addr)   # remove single letters
+        # Remove 1-2 char stray tokens
+        addr = re.sub(r'\b[A-Za-z]{1,2}\b', '', addr)
         addr = re.sub(r'\s+', ' ', addr).strip()
         return addr
     return ""
@@ -320,44 +346,55 @@ def _extract_percentage(text):
 
 # ── FIX 3: marks_obtained and total_marks ────────────────────────
 def _extract_marks_obtained(text):
-    # Maharashtra marksheet: "Total Marks | 600 | 304" or "500   374"
-    # The pattern is: keyword, then max marks, then obtained marks
+    # Maharashtra marksheet row: "Total Marks  600  304" or "Total Marks | 600 | 304"
+    # Try with explicit Total Marks keyword — second number is obtained
     match = re.search(
-        r'(?:Total Marks|एकूण गुण|TOTAL)\s*[\|\s]*(\d{3,4})\s+(\d{3,4})',
+        r'(?:Total\s*Marks|एकूण\s*गुण)\s*[\|]?\s*(\d{3,4})\s*[\|]?\s*(\d{3,4})',
         text, re.IGNORECASE)
     if match:
-        # Validate: obtained <= total
-        total = int(match.group(1))
-        obtained = int(match.group(2))
+        total, obtained = int(match.group(1)), int(match.group(2))
         if obtained <= total:
             return str(obtained)
 
-    # "THREE HUNDRED AND SEVENTY FOUR" style — use number in figures column
-    # Look for last 3-4 digit number before "THREE HUNDRED" or similar
+    # Maharashtra marksheet: last line before "THREE/FOUR HUNDRED..." in words
+    # e.g. "304   THREE HUNDRED AND FOUR"
     match = re.search(
-        r'(\d{3,4})\s+(?:THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|ONE|TWO)\s+HUNDRED',
+        r'\b(\d{3,4})\s+(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE)\s+HUNDRED',
+        text, re.IGNORECASE)
+    if match:
+        val = int(match.group(1))
+        if 100 <= val <= 9000:
+            return str(val)
+
+    # Also try "PASS  74.80  Total Marks 500  374  THREE HUNDRED..."
+    # Find last 3-4 digit number just before a word-form number
+    match = re.search(
+        r'(\d{3,4})\s+(?:THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|ONE|TWO)\s+HUNDRED\s+AND',
         text, re.IGNORECASE)
     if match:
         return match.group(1)
 
-    # Fraction format: 374/500
+    # Fraction: 374/500
     match = re.search(r'\b(\d{3,4})\s*/\s*\d{3,4}\b', text)
     if match:
         return match.group(1)
 
-    # Label
-    match = re.search(r'(?:Marks Obtained|प्राप्त गुण)\s*[:\-]?\s*(\d{3,4})', text, re.IGNORECASE)
+    # Explicit label
+    match = re.search(r'(?:Marks Obtained|Obtained Marks|प्राप्त गुण)\s*[:\-]?\s*(\d{3,4})', text, re.IGNORECASE)
     return match.group(1) if match else ""
 
+
 def _extract_total_marks(text):
-    # "Total Marks  600  304" — 600 is max
+    # "Total Marks  600  304" — first number is max
     match = re.search(
-        r'(?:Total Marks|एकूण गुण|TOTAL)\s*[\|\s]*(\d{3,4})\s+\d{3,4}',
+        r'(?:Total\s*Marks|एकूण\s*गुण)\s*[\|]?\s*(\d{3,4})\s*[\|]?\s*\d{3,4}',
         text, re.IGNORECASE)
     if match:
         return match.group(1)
+    # Fraction: 374/500 — second is total
     match = re.search(r'\b\d{3,4}\s*/\s*(\d{3,4})\b', text)
     return match.group(1) if match else ""
+
 
 def _extract_subjects(text):
     subjects = []
@@ -376,65 +413,64 @@ def _extract_subjects(text):
 
 # ── FIX 4: roll_no — handle all seat/roll formats ────────────────
 def _extract_roll_no(text):
-    # Label-based: "SEAT NO.  C022308" or "Seat No: M064043"
+    # Label + value on same line: "SEAT NO.   C022308"
     match = re.search(
-        r'(?:Seat\s*No|SEAT\s*NO|Roll\s*No|Roll\s*Number|Reg\s*No|Registration\s*No)\s*[.:\-]?\s*([A-Z]?\d{5,10})',
+        r'(?:Seat\s*No\.?|SEAT\s*NO\.?|Roll\s*No\.?|Roll\s*Number|'
+        r'Reg\s*No\.?|Registration\s*No\.?|Admission\s*No\.?)\s*[:\-]?\s*'
+        r'([A-Z]{0,2}\d{5,10})',
         text, re.IGNORECASE)
     if match:
         return match.group(1).strip()
 
-    # Standalone alphanumeric seat no: C022308, M064043, S160795911
-    # Must start with a letter followed by 6-9 digits
+    # Standalone: letter + 6-9 digits — e.g. C022308, M064043, S160795911
     match = re.search(r'\b([A-Z]\d{6,9})\b', text)
     if match:
         return match.group(1)
 
-    # Pure numeric roll no after label
+    # Pure numeric after seat/roll label on next line
     match = re.search(
-        r'(?:Seat|Roll|Reg)\s*[.:\-]?\s*(\d{6,10})',
+        r'(?:Seat|Roll|Reg|Admission)\s*(?:No\.?)?\s*\n\s*(\d{5,10})',
         text, re.IGNORECASE)
     return match.group(1) if match else ""
 
 
 # ── FIX 1: school_name — doc-specific, no table headers ──────────
 def _extract_school_name(text, doc_type=None):
-    # School leaving cert: school name is in the circular top arc text
-    # e.g. "AQSA PUBLIC SCHOOL RAJJAR CHARSADDA"
-    # It appears as first or second line before "SCHOOL LEAVING CERTIFICATE"
+
+    # ── MARKSHEET: only extract Division city ─────────────────────
+    if doc_type in ('marksheet_10', 'marksheet_12'):
+        match = re.search(r'Division\s*[:\-]?\s*([A-Za-z]+)', text, re.IGNORECASE)
+        if match:
+            val = match.group(1).strip()
+            if re.match(r'^[A-Za-z]{3,20}$', val):
+                return val.title() + ' Division'
+        return ""
+
+    # ── SCHOOL LEAVING: school name from top lines ─────────────────
     if doc_type == 'school_leaving':
         lines = [l.strip() for l in text.split('\n') if l.strip()]
-        for line in lines[:5]:
-            # Must contain "School" and NOT contain "Leaving" or "Certificate"
-            if re.search(r'\bSchool\b', line, re.IGNORECASE):
-                if not re.search(r'leaving|certificate|board|examination', line, re.IGNORECASE):
-                    clean = re.sub(r'[^A-Za-z\s]', '', line).strip()
+        for line in lines[:8]:
+            if re.search(r'\b(?:School|Public|High|Academy|Institute|Vidyalaya|Vidyapeeth)\b', line, re.IGNORECASE):
+                if not re.search(r'\b(?:Leaving|Certificate|Board|Examination|Certified|that)\b', line, re.IGNORECASE):
+                    clean = re.sub(r'[^A-Za-z\s]', ' ', line).strip()
                     clean = re.sub(r'\s+', ' ', clean).strip()
-                    if len(clean) > 5:
+                    if 5 < len(clean) < 80:
                         return clean.title()
         return ""
 
-    # Marksheet: board name is in the header, not a separate school field
-    # For marksheets, school_name = division/centre — skip table header lines
-    if doc_type in ('marksheet_10', 'marksheet_12'):
-        # Skip any line that looks like a table header
-        # Real school-related line would say "Division: MUMBAI"
-        match = re.search(r'Division\s*[:\-]?\s*([A-Z][A-Za-z\s]+?)(?:\n|$)', text, re.IGNORECASE)
-        if match:
-            val = match.group(1).strip()
-            if len(val) < 30:  # table headers are long
-                return val.title()
-        return ""
-
-    # General: first line with School/College keyword, not a table header
+    # ── GENERAL: first meaningful line with school/college keyword ─
+    TABLE_WORDS = {'seat', 'centre', 'dist', 'month', 'year', 'srno',
+                   'statement', 'code', 'subject', 'marks', 'medium',
+                   'max', 'figures', 'words', 'grade', 'no'}
     for line in text.split('\n'):
         line = line.strip()
-        if re.search(r'\bSchool\b|\bCollege\b|\bInstitute\b', line, re.IGNORECASE):
-            if not re.search(r'leaving|certificate|board|examination|seat|centre|dist|month|year|srno|statement|no\.|no\s', line, re.IGNORECASE):
-                clean = re.sub(r'[^A-Za-z\s]', '', line).strip()
+        if re.search(r'\b(?:School|College|Institute|University|Vidyalaya)\b', line, re.IGNORECASE):
+            if not re.search(r'\b(?:Leaving|Certificate|Board|Examination)\b', line, re.IGNORECASE):
+                clean = re.sub(r'[^A-Za-z\s]', ' ', line).strip()
                 clean = re.sub(r'\s+', ' ', clean).strip()
-                # Reject if too long (likely a table header row)
-                if 5 < len(clean) < 60:
-                    return clean.title()
+                if not any(w in TABLE_WORDS for w in clean.lower().split()):
+                    if 5 < len(clean) < 80:
+                        return clean.title()
     return ""
 
 def _extract_board_name(text):
