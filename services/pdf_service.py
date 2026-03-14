@@ -8,28 +8,39 @@ import os
 
 def generate_form_pdf(form_type: str, form_data: dict, output_path: str) -> str:
     """
-    Generates a filled form as a PDF file.
-    Input:  form_type string, form_data dict, output file path
+    Generates a filled form PDF.
 
-    form_data may come in two shapes:
-      1. Direct dict of fields: {'full_name': 'John', 'dob': '01/01/2000', ...}
-      2. JS POST payload:       {'form_type': '...', 'form_name': '...', 'fields': {...}}
-    This function handles both.
+    form_data comes in two shapes from the app:
+      1. JS POST:  {'form_type': '...', 'form_name': '...', 'fields': {field: value, ...}}
+      2. Direct:   {field: value, ...}
     """
-    # ── Unwrap nested payload if needed ────────────────────
+    # ── Unwrap nested payload ───────────────────────────────
     if 'fields' in form_data and isinstance(form_data['fields'], dict):
-        fields = form_data['fields']
-        if not form_type or form_type == 'general_purpose':
-            form_type = form_data.get('form_type', form_type)
+        fields    = form_data['fields']
+        form_type = form_data.get('form_type', form_type) or form_type
+        form_name = form_data.get('form_name', form_type.replace('_', ' ').title())
     else:
-        fields = form_data
+        fields    = {k: v for k, v in form_data.items()
+                     if k not in ('form_type', 'csrf_token', 'submit')}
+        form_name = form_type.replace('_', ' ').title()
 
-    # ── Setup canvas ────────────────────────────────────────
-    os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
+    # Remove empty fields
+    fields = {k: v for k, v in fields.items() if v and str(v).strip()}
+
+    # ── Canvas setup ────────────────────────────────────────
+    out_dir = os.path.dirname(output_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
 
-    # ── Header ─────────────────────────────────────────────
+    def new_page():
+        _draw_footer(c, width)
+        c.showPage()
+        return height - 60
+
+    # ── Header ──────────────────────────────────────────────
     c.setFillColor(colors.HexColor("#1B4F72"))
     c.rect(0, height - 80, width, 80, fill=True, stroke=False)
 
@@ -38,13 +49,13 @@ def generate_form_pdf(form_type: str, form_data: dict, output_path: str) -> str:
     c.drawString(2 * cm, height - 38, "FormAssist")
 
     c.setFont("Helvetica", 12)
-    form_label = form_type.replace('_', ' ').title()
-    c.drawString(2 * cm, height - 60, f"Form Type: {form_label}")
+    c.drawString(2 * cm, height - 60, f"Form: {form_name}")
 
-    # Date top right
     c.setFont("Helvetica", 9)
     c.drawRightString(width - 2 * cm, height - 38,
                       datetime.now().strftime("%d %b %Y"))
+    c.drawRightString(width - 2 * cm, height - 55,
+                      f"Type: {form_type}")
 
     # ── Divider ─────────────────────────────────────────────
     c.setStrokeColor(colors.HexColor("#2471A3"))
@@ -53,92 +64,82 @@ def generate_form_pdf(form_type: str, form_data: dict, output_path: str) -> str:
 
     # ── Section title ────────────────────────────────────────
     y = height - 115
-    c.setFont("Helvetica-Bold", 13)
+    c.setFont("Helvetica-Bold", 12)
     c.setFillColor(colors.HexColor("#1B4F72"))
-    c.drawString(2 * cm, y, "Extracted and Filled Information")
-    y -= 8
+    c.drawString(2 * cm, y, "Filled Form Data")
+    y -= 6
 
-    c.setLineWidth(0.5)
     c.setStrokeColor(colors.HexColor("#CCCCCC"))
+    c.setLineWidth(0.5)
     c.line(2 * cm, y, width - 2 * cm, y)
-    y -= 20
-
-    # ── Form meta ─────────────────────────────────────────
-    c.setFont("Helvetica", 9)
-    c.setFillColor(colors.HexColor("#888888"))
-    form_name = form_data.get('form_name', form_label)
-    c.drawString(2 * cm, y, f"Form Name: {form_name}")
-    y -= 20
+    y -= 22
 
     # ── Field rows ──────────────────────────────────────────
-    skip_keys = {'form_type', 'csrf_token', 'submit', 'form_name', 'fields'}
-
-    row_bg_on  = colors.HexColor("#F4F8FB")
-    row_bg_off = colors.white
-    row_index  = 0
+    skip_keys   = {'form_type', 'csrf_token', 'submit', 'form_name', 'fields'}
+    row_colors  = [colors.HexColor("#F4F8FB"), colors.white]
+    row_index   = 0
 
     for key, value in fields.items():
         if key in skip_keys:
             continue
-        if not value or str(value).strip() == '':
+        value_str = str(value).strip()
+        if not value_str:
             continue
 
-        # New page if running out of space
-        if y < 60:
-            _draw_footer(c, width)
-            c.showPage()
-            y = height - 60
-            row_index = 0
+        # New page check
+        if y < 70:
+            y = new_page()
 
         label = key.replace('_', ' ').title()
-        value_str = str(value).strip()
 
-        # Alternating row background
-        bg = row_bg_on if row_index % 2 == 0 else row_bg_off
-        c.setFillColor(bg)
-        c.rect(2 * cm, y - 8, width - 4 * cm, 22, fill=True, stroke=False)
+        # Row background
+        c.setFillColor(row_colors[row_index % 2])
+        row_height = 24 if len(value_str) <= 55 else 42
+        c.rect(2 * cm, y - row_height + 16, width - 4 * cm,
+               row_height, fill=True, stroke=False)
 
         # Label
-        c.setFillColor(colors.HexColor("#555555"))
+        c.setFillColor(colors.HexColor("#444444"))
         c.setFont("Helvetica", 10)
-        c.drawString(2.3 * cm, y + 3, label + ":")
+        c.drawString(2.3 * cm, y, label + ":")
 
-        # Value — handle long text wrapping
+        # Value
         c.setFillColor(colors.HexColor("#111111"))
         c.setFont("Helvetica-Bold", 10)
         if len(value_str) > 55:
-            # Wrap long values (e.g. addresses)
-            c.drawString(8 * cm, y + 3, value_str[:55])
-            y -= 18
-            if y < 60:
-                _draw_footer(c, width)
-                c.showPage()
-                y = height - 60
+            c.drawString(8 * cm, y, value_str[:55])
+            y -= 16
+            if y < 70:
+                y = new_page()
             c.setFillColor(colors.HexColor("#111111"))
             c.setFont("Helvetica-Bold", 10)
-            c.drawString(8 * cm, y + 3, value_str[55:110])
+            c.drawString(8 * cm, y, value_str[55:110])
         else:
-            c.drawString(8 * cm, y + 3, value_str)
+            c.drawString(8 * cm, y, value_str)
 
-        # Separator line
-        c.setStrokeColor(colors.HexColor("#E8E8E8"))
-        c.setLineWidth(0.4)
+        # Separator
+        c.setStrokeColor(colors.HexColor("#E0E0E0"))
+        c.setLineWidth(0.3)
         c.line(2 * cm, y - 8, width - 2 * cm, y - 8)
 
-        y -= 24
+        y      -= 24
         row_index += 1
 
-    # ── Footer ──────────────────────────────────────────────
+    if not fields:
+        c.setFillColor(colors.HexColor("#888888"))
+        c.setFont("Helvetica", 11)
+        c.drawString(2 * cm, y, "No form data was submitted.")
+
     _draw_footer(c, width)
     c.save()
-    print(f"PDF generated: {output_path}")
+    print(f"[PDF] Generated: {output_path} | Fields written: {len(fields)}")
     return output_path
 
 
 def _draw_footer(c, width):
     c.setFillColor(colors.HexColor("#AAAAAA"))
     c.setFont("Helvetica", 8)
-    c.drawString(2 * cm, 30,
+    c.drawString(2 * cm, 28,
         "Generated by FormAssist — AI Based Assisted Digital Form Automation System")
-    c.drawRightString(width - 2 * cm, 30,
+    c.drawRightString(width - 2 * cm, 28,
         datetime.now().strftime("%d %b %Y, %I:%M %p"))

@@ -4,8 +4,8 @@ import re
 def predict_fields(user_data: dict) -> dict:
     """
     Main function — backend calls this.
-    Input:  user_data dict from database or nlp_processor
-    Output: dict mapped to exact form field names
+    Input:  merged user_data dict from all uploaded documents
+    Output: dict mapped to exact HTML form field names
     """
     return {
         # ── Personal Details ───────────────────────────────
@@ -21,14 +21,18 @@ def predict_fields(user_data: dict) -> dict:
         # ── Passport Details ───────────────────────────────
         "passport_number":      _get(user_data, "passport_number"),
         "passport_expiry":      _get(user_data, "passport_expiry"),
-        "nationality":          "Indian",
+        "nationality":          _get(user_data, "nationality") or "Indian",
 
         # ── Academic Details ───────────────────────────────
         "school_name":          _get(user_data, "school_name"),
         "marksheet_10_percent": _get(user_data, "percentage"),
         "marksheet_12_percent": _get(user_data, "percentage"),
+        "marks_obtained":       _get(user_data, "marks_obtained"),
+        "total_marks":          _get(user_data, "total_marks"),
         "board_name":           _get(user_data, "board_name"),
         "passing_year":         _get(user_data, "passing_year"),
+        "subjects":             _get(user_data, "subjects"),
+        "roll_no":              _get(user_data, "roll_no"),
 
         # ── Caste and Category ─────────────────────────────
         "category":             _get(user_data, "category"),
@@ -40,9 +44,12 @@ def predict_fields(user_data: dict) -> dict:
         "ifsc_code":            _get(user_data, "ifsc"),
         "bank_name":            _get(user_data, "bank_name"),
         "account_holder":       _get(user_data, "name"),
+        "branch":               _get(user_data, "branch"),
 
-        # ── Birth Details ──────────────────────────────────
+        # ── Birth / Family Details ─────────────────────────
         "birth_place":          _get(user_data, "birth_place"),
+        "father_name":          _get(user_data, "father_name"),
+        "mother_name":          _get(user_data, "mother_name"),
     }
 
 
@@ -54,7 +61,7 @@ def _get(data: dict, key: str) -> str:
 
 def _format_date(dob: str) -> str:
     """
-    Converts date to DD/MM/YYYY format for the form.
+    Converts date to DD/MM/YYYY format.
     Handles: YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY
     """
     if not dob:

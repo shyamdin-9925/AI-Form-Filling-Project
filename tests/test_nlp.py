@@ -8,7 +8,7 @@ from services.ai_service import process_ocr_text
 
 # Step 1 — Extract text from real Aadhaar card
 print("Step 1 - OCR on Aadhaar card:")
-raw_text = extract_text("tests/sample.jpg")
+raw_text = extract_text("tests/sample1.png")
 print(raw_text)
 
 # Step 2 — Extract entities from that text

@@ -222,7 +222,7 @@ def upload_documents():
         file.save(upload_path)
 
         raw_text   = extract_text(upload_path)
-        entities   = process_ocr_text(raw_text)
+        entities   = process_ocr_text(raw_text, doc_type=field_name)
         compressed = compress_file(upload_path)
         compressed_files.append(compressed)
 
@@ -396,11 +396,22 @@ def download_zip():
 @login_required
 def download_pdf():
     from services.pdf_service import generate_form_pdf
-    form_data   = request.json or \
-                  session.get('last_submission', {}).get('data', {})
-    form_type   = form_data.get('form_type', 'general_purpose')
+
+    # JS sends: {form_type, form_name, fields: {field: value, ...}}
+    payload = request.json or {}
+
+    # Fallback to session if JS payload is empty
+    if not payload or not payload.get('fields'):
+        sub = session.get('last_submission', {})
+        payload = {
+            'form_type': sub.get('form_type', 'general_purpose'),
+            'form_name': sub.get('form_name', ''),
+            'fields':    sub.get('data', {}),
+        }
+
+    form_type   = payload.get('form_type', 'general_purpose')
     output_path = os.path.join('outputs/', f'{form_type}_filled.pdf')
-    generate_form_pdf(form_type, form_data, output_path)
+    generate_form_pdf(form_type, payload, output_path)
     return send_file(output_path, as_attachment=True,
                      download_name=f'{form_type}_filled_form.pdf')
 
