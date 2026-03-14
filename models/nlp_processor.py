@@ -156,7 +156,47 @@ def _extract_name(text, doc_type=None):
         if match:
             return _clean_name(match.group(1))
 
-    # ── AADHAAR / PAN / GENERAL: Name label same line ────────────
+    # ── PAN CARD: name is printed on its own line, no label ──────
+    if doc_type == 'pan_doc':
+        # PAN card layout: Department name, then person name on own line
+        # e.g. "INCOME TAX DEPARTMENT\nD MANIKANDAN\n16/07/1986"
+        # Find a line between the department header and the DOB
+        lines = [l.strip() for l in text.split('\n') if l.strip()]
+        for line in lines:
+            # Skip header lines
+            if re.search(r'income|tax|department|govt|government|india|भारत|आयकर', line, re.IGNORECASE):
+                continue
+            # Skip lines that are dates
+            if re.search(r'\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}', line):
+                continue
+            # Skip lines with PAN number pattern
+            if re.search(r'\b[A-Z]{5}[0-9]{4}[A-Z]\b', line.upper()):
+                continue
+            # Skip signature/short lines
+            if len(line) < 3:
+                continue
+            # This should be the name — clean it
+            words = re.findall(r'\b[A-Za-z]{2,}\b', line)
+            words = [w for w in words if w.lower() not in BAD_NAME_WORDS]
+            if 1 <= len(words) <= 5:
+                return ' '.join(words[:5]).title()
+
+    # ── BANK PASSBOOK: "Customer Name: Mrs. SITARA" ───────────────
+    if doc_type == 'bank_passbook':
+        match = re.search(
+            r'(?:Customer\s*Name|Account\s*Holder|Name)\s*[:\-]\s*'
+            r'(?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Shri\.?|Smt\.?)?\s*'
+            r'([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+){0,4})',
+            text, re.IGNORECASE)
+        if match:
+            return _clean_name(match.group(1))
+        # Also try "Customer Name : Mrs. SITARA X" — take only meaningful words
+        match = re.search(
+            r'(?:Customer\s*Name|A/C\s*Name)\s*[:\-]\s*'
+            r'(?:Mrs?\.?|Ms\.?|Dr\.?|Shri|Smt\.?)?\s*([A-Z\s]{3,40}?)(?:\n|$)',
+            text, re.IGNORECASE)
+        if match:
+            return _clean_name(match.group(1))
     match = re.search(
         r'(?:^|\n)\s*(?:Name|NAME|नाम)\s*[:\-]?\s*'
         r'([A-Za-z][a-z]+(?:\s[A-Za-z][a-z]+){0,3})',
@@ -233,8 +273,15 @@ def _extract_aadhaar(text):
     return match.group().replace(" ", "") if match else ""
 
 def _extract_pan(text):
+    # Standard PAN regex — works on both "PAN: ABCDE1234F" and raw OCR
     match = re.search(r'\b[A-Z]{5}[0-9]{4}[A-Z]\b', text.upper())
-    return match.group() if match else ""
+    if match:
+        return match.group()
+    # PAN card also prints "Permanent Account Number" then number on next line
+    match = re.search(
+        r'(?:Permanent\s+Account\s+Number|PAN\s+Number|PAN\s+No)\s*[:\-]?\s*\n?\s*([A-Z]{5}[0-9]{4}[A-Z])',
+        text.upper(), re.IGNORECASE)
+    return match.group(1) if match else ""
 
 def _extract_phone(text):
     match = re.search(r'\b[6-9]\d{9}\b', text)
@@ -269,26 +316,88 @@ def _extract_gender(text):
     return ""
 
 def _extract_account_no(text):
-    match = re.search(r'\b(\d{9,11}|\d{13,18})\b', text)
-    return match.group() if match else ""
+    # Label-based first: "Account No : 35384505776" or "Account Number: 1234567890"
+    match = re.search(
+        r'(?:Account\s*No\.?|Account\s*Number|A/C\s*No\.?)\s*[:\-]?\s*(\d{9,18})',
+        text, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    # CIF No is not account no — skip it
+    # Standalone 9-18 digit number (exclude 12-digit Aadhaar)
+    for m in re.finditer(r'\b(\d{9,18})\b', text):
+        val = m.group(1)
+        if len(val) != 12:  # skip Aadhaar-length numbers
+            return val
+    return ""
 
 def _extract_ifsc(text):
+    # Label-based first
+    match = re.search(
+        r'(?:IFSC|IFSC\s*Code|IFS\s*Code)\s*[:\-]?\s*([A-Z]{4}0[A-Z0-9]{6})',
+        text.upper(), re.IGNORECASE)
+    if match:
+        return match.group(1)
+    # Raw pattern
     match = re.search(r'\b[A-Z]{4}0[A-Z0-9]{6}\b', text.upper())
     return match.group() if match else ""
 
 def _extract_bank_name(text):
-    banks = ['State Bank of India', 'SBI', 'HDFC Bank', 'HDFC',
-             'ICICI Bank', 'ICICI', 'Bank of Maharashtra',
-             'Punjab National Bank', 'PNB', 'Canara Bank',
-             'Axis Bank', 'Bank of Baroda', 'BOB', 'Union Bank', 'Kotak']
+    # Order matters — longer/more specific names first
+    banks = [
+        'State Bank of India',
+        'Bank of Maharashtra',
+        'Punjab National Bank',
+        'Bank of Baroda',
+        'Canara Bank',
+        'Union Bank of India',
+        'Indian Bank',
+        'Central Bank of India',
+        'Indian Overseas Bank',
+        'UCO Bank',
+        'HDFC Bank',
+        'ICICI Bank',
+        'Axis Bank',
+        'Kotak Mahindra Bank',
+        'Yes Bank',
+        'IndusInd Bank',
+        'IDBI Bank',
+        # Short forms last (to avoid false matches)
+        'SBI', 'HDFC', 'ICICI', 'PNB', 'BOB',
+    ]
+    text_lower = text.lower()
     for bank in banks:
-        if bank.lower() in text.lower():
+        if bank.lower() in text_lower:
             return bank
     return ""
 
 def _extract_branch(text):
-    match = re.search(r'(?:Branch|BRANCH)\s*[:\-]?\s*([A-Za-z\s]+?)(?:\n|$)', text, re.IGNORECASE)
-    return match.group(1).strip().title() if match else ""
+    # "Branch Code: 3146" is NOT the branch name — skip code lines
+    # "Branch Manager" is a title — skip it
+    # Look for "Branch: X" where X is a place name, not a number or title
+    match = re.search(
+        r'(?:Branch\s*(?:Name|Office)?)\s*[:\-]\s*([A-Za-z][A-Za-z\s]{2,30}?)(?:\n|,|$)',
+        text, re.IGNORECASE)
+    if match:
+        val = match.group(1).strip()
+        # Skip if it's "Manager" or "Code" or just a number
+        if not re.search(r'\b(?:Manager|Code|Officer|No)\b', val, re.IGNORECASE):
+            if not val.isdigit():
+                return val.title()
+
+    # Try address-based branch: passbook often has "HAPUR ROAD DASNA" as location
+    # Look for line after bank name that looks like a place
+    lines = text.split('\n')
+    for i, line in enumerate(lines):
+        if re.search(r'State Bank|SBI|HDFC|ICICI|PNB|Bank of', line, re.IGNORECASE):
+            # Next line might be branch location
+            if i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                clean = re.sub(r'[^A-Za-z\s]', '', next_line).strip()
+                words = clean.split()
+                # Valid branch line: 1-4 ALL_CAPS words (place names)
+                if 1 <= len(words) <= 4 and all(w.isupper() and len(w) >= 3 for w in words):
+                    return clean.title()
+    return ""
 
 def _extract_passport_no(text):
     match = re.search(r'\b[A-Z][0-9]{7}\b', text.upper())
