@@ -235,9 +235,12 @@ def upload_documents():
                 combined_entities[key] = value
 
     session['extracted_data']   = combined_entities
-    session['compressed_files'] = compressed_files
+    # Store compressed file paths as comma-separated string (smaller than list)
+    session['compressed_files'] = ','.join(compressed_files)
     session['form_type']        = request.form.get('form_type', '')
-    session['upload_results']   = results
+    # Don't store upload_results in session — too large
+    # Store only doc names that were successfully scanned
+    session['scanned_docs']     = list(results.keys())
 
     return redirect(url_for('extracted_page'))
 
@@ -246,16 +249,19 @@ def upload_documents():
 @login_required
 def extracted_page():
     from services.document_mapping_service import get_required_documents
-    form_type   = session.get('form_type', '')
-    raw_results = session.get('upload_results', {})
-    fi          = FORM_TYPES.get(form_type,
-                  {"label": form_type, "icon": "📋", "color": "#64748b"})
+    form_type      = session.get('form_type', '')
+    extracted_data = session.get('extracted_data', {})
+    scanned_docs   = session.get('scanned_docs', [])
+    fi             = FORM_TYPES.get(form_type,
+                     {"label": form_type, "icon": "📋", "color": "#64748b"})
 
+    # Build formatted results from extracted_data and scanned_docs list
     formatted = {}
-    for doc_name, result in raw_results.items():
+    for doc_name in scanned_docs:
+        # Get entities for this doc from combined extracted_data
         formatted[doc_name] = {
             "ok":       True,
-            "entities": result.get('entities', {}),
+            "entities": {k: v for k, v in extracted_data.items() if v},
             "raw_text": "",
         }
 
@@ -326,6 +332,10 @@ def form_submit():
     # Store only the submission ID — avoids session cookie overflow
     session['last_submission_id'] = new_sub.id
     session['last_form_type']     = form_type
+    # Clear large session keys no longer needed
+    session.pop('extracted_data', None)
+    session.pop('upload_results', None)
+    session.pop('scanned_docs', None)
     flash("Form submitted successfully!", "success")
     return redirect(url_for("result"))
 
@@ -414,7 +424,9 @@ def ai_autofill():
 @login_required
 def download_zip():
     from services.zip_service import create_zip
-    compressed_files = session.get('compressed_files', [])
+    compressed_raw   = session.get('compressed_files', '')
+    compressed_files = [f for f in compressed_raw.split(',') if f.strip()] \
+                       if compressed_raw else []
     output_path      = os.path.join('outputs/', 'compressed_documents.zip')
     create_zip(compressed_files, output_path)
     return send_file(output_path, as_attachment=True,
