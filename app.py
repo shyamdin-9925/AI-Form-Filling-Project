@@ -323,18 +323,9 @@ def form_submit():
     db.session.add(new_sub)
     db.session.commit()
 
-    sub_data = {
-        "id":           new_sub.id,
-        "form_type":    form_type,
-        "form_name":    fi["label"],
-        "form_icon":    fi["icon"],
-        "form_color":   fi["color"],
-        "status":       "Submitted",
-        "submitted_at": now_str(),
-        "data":         form_data,
-    }
-    session['last_submission'] = sub_data
-    session['last_form_type']  = form_type
+    # Store only the submission ID — avoids session cookie overflow
+    session['last_submission_id'] = new_sub.id
+    session['last_form_type']     = form_type
     flash("Form submitted successfully!", "success")
     return redirect(url_for("result"))
 
@@ -342,14 +333,33 @@ def form_submit():
 @app.route("/form/review", methods=["GET", "POST"])
 @login_required
 def review_page():
-    sub       = session.get('last_submission', {})
+    sub_id    = session.get('last_submission_id')
     form_type = session.get('last_form_type', 'general_purpose')
     fi        = FORM_TYPES.get(form_type,
                 {"label": form_type, "icon": "📋", "color": "#64748b"})
+    sub       = {}
+    form_data = {}
+    if sub_id:
+        db_sub = Submission.query.get(sub_id)
+        if db_sub:
+            form_data = json.loads(db_sub.data_json) if db_sub.data_json else {}
+            fi2 = FORM_TYPES.get(db_sub.form_type,
+                  {"label": db_sub.form_type, "icon": "📋", "color": "#64748b"})
+            sub = {
+                "id":           db_sub.id,
+                "form_type":    db_sub.form_type,
+                "form_name":    fi2["label"],
+                "form_icon":    fi2["icon"],
+                "form_color":   fi2["color"],
+                "status":       db_sub.status,
+                "submitted_at": db_sub.submitted_at.strftime("%d %b %Y, %I:%M %p")
+                                if db_sub.submitted_at else "",
+                "data":         form_data,
+            }
     if request.method == "POST":
         return redirect(url_for("result"))
     return render_template("review.html",
-        data      = sub.get('data', {}),
+        data      = form_data,
         sub       = sub,
         form_type = form_type,
         form_info = fi,
@@ -359,12 +369,31 @@ def review_page():
 @app.route("/result")
 @login_required
 def result():
-    sub       = session.get('last_submission', {})
+    sub_id    = session.get('last_submission_id')
     form_type = session.get('last_form_type', 'general_purpose')
+    sub       = {}
+    form_data = {}
+    if sub_id:
+        db_sub = Submission.query.get(sub_id)
+        if db_sub:
+            form_data = json.loads(db_sub.data_json) if db_sub.data_json else {}
+            fi = FORM_TYPES.get(db_sub.form_type,
+                 {"label": db_sub.form_type, "icon": "📋", "color": "#64748b"})
+            sub = {
+                "id":           db_sub.id,
+                "form_type":    db_sub.form_type,
+                "form_name":    fi["label"],
+                "form_icon":    fi["icon"],
+                "form_color":   fi["color"],
+                "status":       db_sub.status,
+                "submitted_at": db_sub.submitted_at.strftime("%d %b %Y, %I:%M %p")
+                                if db_sub.submitted_at else "",
+                "data":         form_data,
+            }
     return render_template("result.html",
         sub       = sub,
         form_type = form_type,
-        data      = sub.get('data', {}),
+        data      = form_data,
     )
 
 # ── AI autofill API ────────────────────────────────────────────────────────────
@@ -397,17 +426,21 @@ def download_zip():
 def download_pdf():
     from services.pdf_service import generate_form_pdf
 
-    # JS sends: {form_type, form_name, fields: {field: value, ...}}
     payload = request.json or {}
 
-    # Fallback to session if JS payload is empty
-    if not payload or not payload.get('fields'):
-        sub = session.get('last_submission', {})
-        payload = {
-            'form_type': sub.get('form_type', 'general_purpose'),
-            'form_name': sub.get('form_name', ''),
-            'fields':    sub.get('data', {}),
-        }
+    # If fields empty, load from DB
+    if not payload.get('fields') or not any(payload.get('fields', {}).values()):
+        sub_id = session.get('last_submission_id')
+        if sub_id:
+            db_sub = Submission.query.get(sub_id)
+            if db_sub and db_sub.data_json:
+                fi = FORM_TYPES.get(db_sub.form_type,
+                     {"label": db_sub.form_type, "icon": "📋", "color": "#64748b"})
+                payload = {
+                    'form_type': db_sub.form_type,
+                    'form_name': fi["label"],
+                    'fields':    json.loads(db_sub.data_json),
+                }
 
     form_type   = payload.get('form_type', 'general_purpose')
     output_path = os.path.join('outputs/', f'{form_type}_filled.pdf')
@@ -428,11 +461,18 @@ def web_autofill():
     if not url:
         return jsonify({'success': False, 'error': 'No URL provided'}), 400
 
-    # Map FormAssist field names → scholarship portal HTML field IDs
-    # Pass raw FormAssist field names — web_autofill_service handles the mapping
-    # per step internally (Step1/Step2/Step3 each have their own field map)
+    # If form_data is empty (session cookie overflow dropped it),
+    # load from database using the last submission ID
+    if not form_data or not any(str(v).strip() for v in form_data.values()):
+        sub_id = session.get('last_submission_id')
+        if sub_id:
+            db_sub = Submission.query.get(sub_id)
+            if db_sub and db_sub.data_json:
+                form_data = json.loads(db_sub.data_json)
+                print(f"Loaded form data from DB (submission #{sub_id})")
+
     print(f"Starting web autofill for: {url}")
-    print(f"Fields available: {[k for k, v in form_data.items() if v]}")
+    print(f"Fields available: {[k for k, v in form_data.items() if str(v).strip()]}")
 
     result = autofill_website(url, form_data)
     return jsonify(result)
