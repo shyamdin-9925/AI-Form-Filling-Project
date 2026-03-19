@@ -107,10 +107,10 @@ AI-Form-Filling-Project/
 ## Requirements
 
 ### 1. Python
-This project requires **Python 3.11**.
-Download from: https://www.python.org/downloads/release/python-3119/
+This project requires **Python 3.11 or higher** (developed and tested on Python 3.14).
+Download from: https://www.python.org/downloads/
 
-> ⚠️ Python 3.14 is NOT supported due to spaCy compatibility issues. Use Python 3.11.
+> ℹ️ This project uses **regex-based NLP** instead of spaCy, so it is fully compatible with Python 3.14 and above. No spaCy installation is required.
 
 ### 2. Tesseract OCR
 Tesseract must be installed separately before running the app.
@@ -305,5 +305,5 @@ Always work on your own branch and raise a Pull Request to merge into `main`.
 
 ---
 
-> This project is developed as a college TE SEM6 project.
+> This project is developed as a college project.
 > **FormAssist** — AI Based Assisted Digital Form Automation System
