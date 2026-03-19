@@ -417,15 +417,24 @@ def download_pdf():
 
 # ── Web autofill ───────────────────────────────────────────────────────────────
 @app.route("/web-autofill", methods=["POST"])
+@app.route("/output/web-autofill", methods=["POST"])
 @login_required
 def web_autofill():
     from services.web_autofill_service import autofill_website
-    data      = request.json
+    data      = request.json or {}
     url       = data.get('url')
     form_data = data.get('form_data', {})
+
     if not url:
-        return jsonify({'error': 'No URL provided'}), 400
-    result = autofill_website(url, {k: v for k, v in form_data.items() if v})
+        return jsonify({'success': False, 'error': 'No URL provided'}), 400
+
+    # Map FormAssist field names → scholarship portal HTML field IDs
+    # Pass raw FormAssist field names — web_autofill_service handles the mapping
+    # per step internally (Step1/Step2/Step3 each have their own field map)
+    print(f"Starting web autofill for: {url}")
+    print(f"Fields available: {[k for k, v in form_data.items() if v]}")
+
+    result = autofill_website(url, form_data)
     return jsonify(result)
 
 if __name__ == '__main__':
