@@ -10,13 +10,10 @@ from flask import (Flask, render_template, request, redirect,
 from database.db import db
 from database.user_model import User
 from database.submission_model import Submission
-from routes.output_routes import output_bp
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
 db.init_app(app)
-
-app.register_blueprint(output_bp, url_prefix='/output')
 
 os.makedirs('uploads/', exist_ok=True)
 os.makedirs('outputs/', exist_ok=True)
