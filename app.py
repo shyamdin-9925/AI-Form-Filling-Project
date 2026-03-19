@@ -235,12 +235,14 @@ def upload_documents():
                 combined_entities[key] = value
 
     session['extracted_data']   = combined_entities
-    # Store compressed file paths as comma-separated string (smaller than list)
     session['compressed_files'] = ','.join(compressed_files)
     session['form_type']        = request.form.get('form_type', '')
-    # Don't store upload_results in session — too large
-    # Store only doc names that were successfully scanned
-    session['scanned_docs']     = list(results.keys())
+    # Store per-doc entities separately for the extracted page display
+    # Only store non-empty values to keep session small
+    per_doc = {}
+    for doc_name, result in results.items():
+        per_doc[doc_name] = {k: v for k, v in result['entities'].items() if v}
+    session['per_doc_entities'] = per_doc
 
     return redirect(url_for('extracted_page'))
 
@@ -249,19 +251,17 @@ def upload_documents():
 @login_required
 def extracted_page():
     from services.document_mapping_service import get_required_documents
-    form_type      = session.get('form_type', '')
-    extracted_data = session.get('extracted_data', {})
-    scanned_docs   = session.get('scanned_docs', [])
-    fi             = FORM_TYPES.get(form_type,
-                     {"label": form_type, "icon": "📋", "color": "#64748b"})
+    form_type       = session.get('form_type', '')
+    per_doc         = session.get('per_doc_entities', {})
+    fi              = FORM_TYPES.get(form_type,
+                      {"label": form_type, "icon": "📋", "color": "#64748b"})
 
-    # Build formatted results from extracted_data and scanned_docs list
+    # Each doc shows only its own extracted fields
     formatted = {}
-    for doc_name in scanned_docs:
-        # Get entities for this doc from combined extracted_data
+    for doc_name, entities in per_doc.items():
         formatted[doc_name] = {
             "ok":       True,
-            "entities": {k: v for k, v in extracted_data.items() if v},
+            "entities": entities,
             "raw_text": "",
         }
 
@@ -336,6 +336,7 @@ def form_submit():
     session.pop('extracted_data', None)
     session.pop('upload_results', None)
     session.pop('scanned_docs', None)
+    session.pop('per_doc_entities', None)
     flash("Form submitted successfully!", "success")
     return redirect(url_for("result"))
 
@@ -473,15 +474,25 @@ def web_autofill():
     if not url:
         return jsonify({'success': False, 'error': 'No URL provided'}), 400
 
-    # If form_data is empty (session cookie overflow dropped it),
-    # load from database using the last submission ID
-    if not form_data or not any(str(v).strip() for v in form_data.values()):
-        sub_id = session.get('last_submission_id')
-        if sub_id:
-            db_sub = Submission.query.get(sub_id)
-            if db_sub and db_sub.data_json:
-                form_data = json.loads(db_sub.data_json)
-                print(f"Loaded form data from DB (submission #{sub_id})")
+    print(f"DEBUG form_data from JS: {form_data}")
+    print(f"DEBUG session keys: {list(session.keys())}")
+    print(f"DEBUG last_submission_id: {session.get('last_submission_id')}")
+
+    # Always load from DB — most reliable source
+    sub_id = session.get('last_submission_id')
+    if sub_id:
+        db_sub = Submission.query.get(sub_id)
+        if db_sub and db_sub.data_json:
+            form_data = json.loads(db_sub.data_json)
+            print(f"Loaded form data from DB (submission #{sub_id}), keys: {list(form_data.keys())}")
+    elif not form_data or not any(str(v).strip() for v in form_data.values()):
+        # Last resort: get most recent submission for this user
+        latest = Submission.query.filter_by(
+            user_id=session.get('user_id')
+        ).order_by(Submission.id.desc()).first()
+        if latest and latest.data_json:
+            form_data = json.loads(latest.data_json)
+            print(f"Loaded form data from latest submission #{latest.id}")
 
     print(f"Starting web autofill for: {url}")
     print(f"Fields available: {[k for k, v in form_data.items() if str(v).strip()]}")
